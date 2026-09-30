@@ -14,9 +14,11 @@ import bcrypt from "bcryptjs";
 import { normalizarUrl } from "../lib/db";
 import * as schema from "../lib/db/schema";
 import { CATEGORIAS, CAUSAS } from "./datos-base";
+import { filasNumeradas } from "../lib/planilla";
 
 const {
   activos,
+  cargasCombustible,
   categoriasInsumo,
   causas,
   cotizaciones,
@@ -101,9 +103,10 @@ async function ejemplos(db: Db, pin: string) {
       { nombre: "Grasa multipropósito", categoriaId: cat("Lubricantes y fluidos"), unidad: "kg", critico: "1", atento: "3", ideal: "6" },
       { nombre: "Filtro de aceite Hilux", categoriaId: cat("Filtros"), unidad: "unidad", critico: "0", atento: "1", ideal: "2" },
       { nombre: "Guantes de trabajo", categoriaId: cat("Seguridad (EPP)"), unidad: "par", critico: "5", atento: "10", ideal: "24", infaltable: true },
+      { nombre: "Gasoil (tambor)", categoriaId: cat("Combustibles"), unidad: "l", critico: "40", atento: "80", ideal: "200" },
     ])
     .returning();
-  const stocks = [30, 4, 6, 8, 40, 2, 1, 12];
+  const stocks = [30, 4, 6, 8, 40, 2, 1, 12, 150];
   for (let i = 0; i < ins.length; i++) {
     await db.insert(movimientosInsumo).values({
       insumoId: ins[i].id,
@@ -128,12 +131,18 @@ async function ejemplos(db: Db, pin: string) {
       { clase: "maquina" as const, tipo: "Compresor", nombre: "Compresor a tornillo", codigo: "CP-01", ubicacion: "Sala de compresores", medidor: "horas" as const },
       {
         clase: "vehiculo" as const, tipo: "Camioneta", nombre: "Hilux blanca", patente: "AB123CD", marca: "Toyota", modelo: "Hilux 2.8", anio: 2021,
-        medidor: "km" as const, responsableId: id("chofer1"),
+        medidor: "km" as const, responsableId: id("chofer1"), combustible: "diesel" as const,
         caracteristicas: [{ clave: "Aceite de motor", valor: "15W40 — 7,5 l" }, { clave: "Cubiertas", valor: "265/65 R17" }],
       },
-      { clase: "vehiculo" as const, tipo: "Autoelevador", nombre: "Clark 2", codigo: "AE-02", marca: "Clark", anio: 2015, medidor: "horas" as const, ubicacion: "Playa" },
+      { clase: "vehiculo" as const, tipo: "Autoelevador", nombre: "Clark 2", codigo: "AE-02", marca: "Clark", anio: 2015, medidor: "horas" as const, ubicacion: "Playa", combustible: "diesel" as const },
+      { clase: "vehiculo" as const, tipo: "Autoelevador", nombre: "Clark 1", codigo: "AE-01", marca: "Clark", anio: 2012, medidor: "horas" as const, ubicacion: "Playa", combustible: "nafta" as const },
+      { clase: "maquina" as const, tipo: "Carrusel", nombre: "Carrusel de mesas", codigo: "EPACK", ubicacion: "Epack" },
+      { clase: "maquina" as const, tipo: "Línea / sector", nombre: "Sector Piedra", codigo: "PIEDRA", ubicacion: "Piedra" },
+      { clase: "maquina" as const, tipo: "Trompo", nombre: "Trompo 2", codigo: "TR-02", ubicacion: "Piedra" },
+      { clase: "maquina" as const, tipo: "Túnel", nombre: "Túnel", codigo: "TUN-01", ubicacion: "Piedra" },
     ])
     .returning();
+  const [, , , clark2, clark1, carrusel, piedra, trompo, tunel] = eq_;
 
   await db.insert(lecturas).values([
     { activoId: eq_[1].id, fecha: dia(90), valor: "11200", usuarioId: adm.id },
@@ -143,6 +152,15 @@ async function ejemplos(db: Db, pin: string) {
     { activoId: eq_[2].id, fecha: dia(10), valor: "84200", usuarioId: adm.id },
     { activoId: eq_[3].id, fecha: dia(40), valor: "8120", usuarioId: adm.id },
   ]);
+
+  // Combustible: un bidón de 20 L cada ~6 horas de clark, durante 4 meses.
+  let horas = 8120;
+  for (let d = 38; d >= 1; d -= 3) {
+    horas += 6 + (d % 5);
+    await db.insert(lecturas).values({ activoId: clark2.id, fecha: dia(d), valor: String(horas), usuarioId: adm.id }).onConflictDoNothing();
+    await db.insert(cargasCombustible).values({ activoId: clark2.id, fecha: dia(d), litros: "20", lectura: String(horas), usuarioId: adm.id });
+  }
+  await db.insert(lecturas).values({ activoId: clark1.id, fecha: dia(20), valor: "15230", usuarioId: adm.id });
 
   const pls = await db
     .insert(planes)
@@ -154,6 +172,32 @@ async function ejemplos(db: Db, pin: string) {
       { activoId: eq_[3].id, nombre: "Service 250 horas", cadaUso: 250, avisoUso: 25, responsableId: id("tecnico1"), desdeFecha: dia(90), desdeUso: "7900" },
     ])
     .returning();
+  const [pClark, pCarrusel, pPiedra] = await db
+    .insert(planes)
+    .values([
+      { activoId: clark1.id, nombre: "Control de clark", cadaDias: 7, responsableId: id("tecnico1"), desdeFecha: dia(8) },
+      {
+        activoId: carrusel.id, nombre: "Control carrusel de mesas", cadaDias: 7, responsableId: id("tecnico1"), desdeFecha: dia(3),
+        columnas: ["Vidrios", "Ruedas", "Arrastres", "Guías", "Tramo de cadena"],
+      },
+      {
+        activoId: piedra.id, nombre: "Revisión diaria sector Piedra", cadaDias: 1, avisoDias: 0, responsableId: id("tecnico1"), desdeFecha: dia(1),
+        columnas: ["Limpieza", "Rotura", "Desgaste", "Falla", "Cambiar"],
+      },
+    ])
+    .returning();
+  const sec = (planId: number, orden0: number, seccion: string | null, activoId: number | null, ...d: string[]) =>
+    d.map((descripcion, i) => ({ planId, orden: orden0 + i, seccion, activoId, accion: "chequear" as const, descripcion }));
+  await db.insert(planTareas).values([
+    ...sec(pClark.id, 0, null, null, "Nivel aceite motor", "Nivel aceite hidráulico", "Nivel líquido refrigerante"),
+    { planId: pClark.id, orden: 3, accion: "limpiar" as const, descripcion: "Limpieza filtro de aire" },
+    { planId: pClark.id, orden: 4, accion: "lubricar" as const, descripcion: "Engrase" },
+    ...sec(pCarrusel.id, 0, null, null, ...filasNumeradas("Mesa", 1, 108)),
+    ...sec(pPiedra.id, 0, "Trompo 2", trompo.id, "Motor", "Reductor", "Tablero", "Tambor", "Plataforma"),
+    ...sec(pPiedra.id, 10, "Mesa vibrado", null, "Resortes", "Teclas", "Cables", "Tapa de mesa", "Batea", "Cucharas", "Mezclador"),
+    ...sec(pPiedra.id, 20, "Sistema de agua", null, "Manguera", "Pico de agua"),
+    ...sec(pPiedra.id, 30, "Túnel", tunel.id, "Motores", "Cinta transportadora", "Resistencias", "Sensores", "Cuchilla", "Cinta de cuchilla", "Rodamientos"),
+  ]);
   await db.insert(planTareas).values([
     { planId: pls[0].id, orden: 0, accion: "lubricar", descripcion: "Rodamientos del eje principal" },
     { planId: pls[0].id, orden: 1, accion: "chequear", descripcion: "Tensión de correas" },
@@ -194,7 +238,7 @@ async function ejemplos(db: Db, pin: string) {
     .values([{ fecha: dia(90), arsPorUsd: "1250", nota: "Ejemplo" }])
     .onConflictDoNothing();
 
-  console.log(`✓ Ejemplos: usuarios jefe, tecnico1, chofer1, auditoria (PIN ${pin}), 4 equipos, 8 insumos.`);
+  console.log(`✓ Ejemplos: usuarios jefe, tecnico1, chofer1, auditoria (PIN ${pin}), 9 equipos (con carrusel, sector Piedra y clarks), 9 insumos.`);
 }
 
 main().catch((e) => {

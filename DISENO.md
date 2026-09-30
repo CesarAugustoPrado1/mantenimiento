@@ -116,6 +116,34 @@ después no reescribe la historia.
 
 VTV, seguro o matafuegos son planes por días, sin checklist.
 
+#### Planillas: filas × columnas
+
+El checklist de un plan es una **planilla**, igual que las de papel que ya se
+usan en planta:
+
+- **filas** agrupadas en **secciones**;
+- **columnas** configurables por plan. Sin columnas hay una sola casilla por fila;
+- cada celda se marca **✓ bien, ✗ mal o — no se revisó**.
+
+Las tres planillas actuales entran tal cual, y están como plantillas en el
+editor de planes:
+
+| Planilla en papel | En la app |
+| --- | --- |
+| **Clark** (nivel aceite motor, hidráulico, refrigerante, filtro de aire, engrase + fecha + hs) | Plan del clark, una casilla por fila; las horas son la lectura del horómetro |
+| **Carrusel de mesas** (Mesa 1…108 × Vidrios, Ruedas, Arrastres, Guías, Tramo de cadena) | Columnas + 108 filas generadas solas ("Mesa 1 … N") |
+| **Revisión diaria sector Piedra** (Trompo 2, Mesa vibrado, Sistema de agua, Túnel × Limpieza, Rotura, Desgaste, Falla, Cambiar) | Una sección por equipo, cada 1 día |
+
+Una sección puede ser **otro equipo** (el Túnel dentro de la revisión del sector):
+así un ✗ ahí abre el correctivo sobre el Túnel y no sobre "el sector".
+
+La planilla arranca vacía a propósito: marcar "todo bien" tiene que ser un acto
+explícito. Por eso cada sección tiene un botón **✓ Todo bien**, y después se tocan
+solo las celdas que dan mal. Cada ✗ se lista como **hallazgo**, con un botón que
+abre el correctivo con el equipo y el título ya cargados. La pantalla de cada
+planilla muestra además **lo que más da mal en los últimos 90 días** (por
+ejemplo, la mesa 17 que siempre tiene problemas de ruedas).
+
 ### 1.6 Correctivos
 
 Lo que sale de lo esperado. Se **abre** con la falla (lo puede reportar el
@@ -136,7 +164,32 @@ ficha muestra la lectura de fin de cada mes y lo recorrido. Una lectura menor a
 la anterior se rechaza: el odómetro no va para atrás, y un número al revés
 rompería las estimaciones de la agenda.
 
-### 1.8 Obras
+### 1.8 Combustible
+
+Por protocolo, **cada bidón que se carga se registra**: equipo, litros y las horas
+del horómetro (o el km) en ese momento. La lectura es obligatoria para los
+equipos con medidor, porque sin ella no hay consumo. Esa lectura también cuenta
+como lectura del día, así que cargar combustible mantiene al día la agenda de
+los services por horas.
+
+Con bidones no hay "tanque lleno", así que el consumo se calcula **por período**:
+se suman los litros cargados entre dos lecturas y se dividen por las horas
+trabajadas entre esas dos lecturas. En períodos largos los bidones sueltos se
+compensan.
+
+- **L/h** (o L/100 km) y su inversa, **horas por litro** (o km por litro), de los
+  últimos 90 días;
+- una **tabla por mes**: litros, horas y L/h;
+- una alerta de **consumo alto** cuando el último mes supera en más de 25% el
+  promedio de los anteriores. Eso puede ser una pérdida, un motor que anda mal
+  o combustible que no va adonde se anota.
+
+Cada equipo dice qué combustible usa (diésel, nafta, GNC). Si el bidón sale del
+tambor de la empresa, se descuenta del stock de ese insumo (categoría
+*Combustibles*). El conductor puede registrar cargas en cualquier vehículo de la
+empresa (los clarks los maneja quien esté) y en el suyo.
+
+### 1.9 Obras
 
 Armado de locales, arreglos en oficinas propias, obras edilicias: título, lugar,
 tipo, estado, prioridad, fechas, responsable o contratista, costos, una
@@ -169,10 +222,13 @@ La decisión tomada tiene tres partes:
 **1. Se guarda el monto en pesos, con su fecha, tal cual se pagó.** Nunca se
 guarda un monto "convertido". El dato original no se toca.
 
-**2. Se carga la cotización del dólar** (una por mes alcanza, en
-Configuración → Cotización; sirve el oficial BNA o el que use la empresa, pero
-siempre el mismo). Los informes pasan **cada gasto a dólares con la cotización
-vigente a su fecha**. Como la conversión se hace al leer y no al guardar, si una
+**2. La cotización del dólar se carga sola.** Todos los días hábiles, un cron de
+Vercel trae el historial de *argentinadatos.com* (con *dolarapi.com* de respaldo)
+y completa los días que falten. En Configuración → Cotización se elige **qué
+dólar** usar: oficial BNA (por defecto), MEP, CCL, blue o mayorista. Al
+cambiarlo se reemplaza el historial automático entero, para no mezclar dos
+dólares distintos. Una cotización cargada a mano nunca se pisa. Los informes
+pasan **cada gasto a dólares con la cotización vigente a su fecha**. Como la conversión se hace al leer y no al guardar, si una
 cotización estaba mal se corrige y todos los informes se arreglan solos. Así se
 puede comparar 2025 contra 2027.
 

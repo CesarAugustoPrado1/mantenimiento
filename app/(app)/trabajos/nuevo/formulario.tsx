@@ -12,12 +12,14 @@ export function AbrirCorrectivo({
   activoInicial,
   hoy,
   tituloInicial,
+  fallaInicial,
   irAlEquipo,
 }: {
   activos: Array<{ id: number; nombre: string; medidor: string }>;
   activoInicial: number | null;
   hoy: string;
   tituloInicial: string;
+  fallaInicial: string;
   /** El conductor no ve la pantalla del trabajo: vuelve a la ficha de su vehículo. */
   irAlEquipo: boolean;
 }) {
@@ -25,7 +27,7 @@ export function AbrirCorrectivo({
   const { ejecutar, enviando, error } = useAccion();
   const [activoId, setActivoId] = useState<number | null>(activoInicial ?? (activos.length === 1 ? activos[0].id : null));
   const [titulo, setTitulo] = useState(tituloInicial);
-  const [falla, setFalla] = useState("");
+  const [falla, setFalla] = useState(fallaInicial);
   const [prioridad, setPrioridad] = useState<"baja" | "media" | "alta" | "urgente">("media");
   const [fecha, setFecha] = useState(hoy);
   const [lectura, setLectura] = useState("");

@@ -23,6 +23,7 @@ const REGLAS: Array<{ prefijo: string; roles: Rol[] }> = [
   // El conductor puede reportar una falla de su vehículo.
   { prefijo: "/trabajos/nuevo", roles: TODOS },
   { prefijo: "/km", roles: ["admin", "jefe_taller", "tecnico", "conductor"] },
+  { prefijo: "/combustible", roles: TODOS },
   { prefijo: "/obras", roles: TALLER },
   { prefijo: "/informes", roles: ["admin", "jefe_taller", "auditor"] },
   { prefijo: "/admin", roles: ["admin", "jefe_taller"] },
@@ -68,6 +69,7 @@ const NAV: ItemNav[] = [
   { href: "/tablero", etiqueta: "Tablero", icono: "tablero" },
   { href: "/agenda", etiqueta: "Agenda", icono: "agenda" },
   { href: "/km", etiqueta: "Cargar km", icono: "km" },
+  { href: "/combustible", etiqueta: "Combustible", icono: "combustible" },
   { href: "/insumos", etiqueta: "Insumos", icono: "insumos" },
   { href: "/maquinas", etiqueta: "Máquinas", icono: "maquina" },
   { href: "/vehiculos", etiqueta: "Vehículos", icono: "vehiculo" },

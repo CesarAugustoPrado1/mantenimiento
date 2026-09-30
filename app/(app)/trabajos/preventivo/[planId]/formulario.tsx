@@ -7,38 +7,32 @@ import { useAccion } from "@/components/usar-accion";
 import { Aviso } from "@/components/ui";
 import { Campo } from "@/components/admin";
 import { EditorConsumos, consumosValidos, type LineaConsumo } from "@/components/consumos";
-import type { AccionTarea, ResultadoTarea } from "@/lib/db/schema";
-
-const RESULTADOS: Array<{ valor: ResultadoTarea; texto: string; clase: string }> = [
-  { valor: "ok", texto: "OK", clase: "bg-verde text-white" },
-  { valor: "corregido", texto: "Corregido", clase: "bg-blue-600 text-white" },
-  { valor: "no_ok", texto: "Mal", clase: "bg-rojo text-white" },
-  { valor: "no_aplica", texto: "N/A", clase: "bg-slate-500 text-white" },
-];
+import type { AccionTarea } from "@/lib/db/schema";
+import { CompletarPlanilla, type FilaPlanilla } from "@/components/planilla";
 
 export function RegistrarPreventivo({
   planId,
-  activoId,
   medidor,
   hoy,
   ultimaLectura,
   yo,
   responsableId,
   responsableExterno,
+  columnas,
   tareas: tareasPlan,
   consumos: consumosPlan,
   usuarios,
   insumos,
 }: {
   planId: number;
-  activoId: number;
   medidor: "ninguno" | "km" | "horas";
   hoy: string;
   ultimaLectura: number | null;
   yo: number;
   responsableId: number | null;
   responsableExterno: string | null;
-  tareas: Array<{ accion: AccionTarea; descripcion: string }>;
+  columnas: string[];
+  tareas: Array<{ seccion: string | null; activoId: number | null; accion: AccionTarea; descripcion: string }>;
   consumos: LineaConsumo[];
   usuarios: Array<{ id: number; nombre: string }>;
   insumos: Array<{ id: number; nombre: string; unidad: string; stock: number }>;
@@ -51,16 +45,15 @@ export function RegistrarPreventivo({
     responsableExterno && !responsableId ? "externo" : String(responsableId ?? yo),
   );
   const [externo, setExterno] = useState(responsableExterno ?? "");
-  const [tareas, setTareas] = useState(
-    tareasPlan.map((t) => ({ ...t, resultado: "ok" as ResultadoTarea, nota: "" })),
-  );
+  const [tareas, setTareas] = useState<FilaPlanilla[]>(tareasPlan.map((t) => ({ ...t, valores: {}, nota: "" })));
   const [consumos, setConsumos] = useState<LineaConsumo[]>(consumosPlan);
   const [horas, setHoras] = useState("");
   const [manoObra, setManoObra] = useState("");
   const [repuestos, setRepuestos] = useState("");
   const [obs, setObs] = useState("");
 
-  const malos = tareas.filter((t) => t.resultado === "no_ok");
+  const malos = tareas.filter((t) => Object.values(t.valores).includes("mal"));
+  const marcadas = tareas.filter((t) => Object.values(t.valores).some((v) => v !== "na")).length;
   const u = medidor === "km" ? "km" : "horas";
 
   return (
@@ -96,44 +89,13 @@ export function RegistrarPreventivo({
 
       {tareas.length > 0 && (
         <div className="tarjeta p-5">
-          <p className="mb-3 font-bold">Checklist</p>
-          <ul className="space-y-3">
-            {tareas.map((t, i) => (
-              <li key={i} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
-                <p className="text-sm">
-                  <span className="font-semibold capitalize">{t.accion}</span> {t.descripcion}
-                </p>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {RESULTADOS.map((r) => (
-                    <button
-                      key={r.valor}
-                      type="button"
-                      onClick={() => setTareas(tareas.map((x, j) => (j === i ? { ...x, resultado: r.valor } : x)))}
-                      className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
-                        t.resultado === r.valor ? r.clase : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {r.texto}
-                    </button>
-                  ))}
-                </div>
-                {t.resultado !== "ok" && (
-                  <input
-                    className="campo mt-2"
-                    placeholder="¿Qué se encontró?"
-                    value={t.nota}
-                    onChange={(e) => setTareas(tareas.map((x, j) => (j === i ? { ...x, nota: e.target.value } : x)))}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
+          <CompletarPlanilla columnas={columnas} filas={tareas} cambiar={setTareas} />
           {malos.length > 0 && (
-            <p className="mt-3">
+            <div className="mt-3">
               <Aviso tono="alerta">
-                Hay {malos.length} punto(s) mal. Después de guardar, conviene abrir un correctivo desde la ficha del equipo.
+                {malos.length} fila(s) con ✗. Después de guardar vas a poder abrir un correctivo por cada hallazgo con un toque.
               </Aviso>
-            </p>
+            </div>
           )}
         </div>
       )}
@@ -167,7 +129,8 @@ export function RegistrarPreventivo({
         <button
           type="button"
           className="boton-primario"
-          disabled={enviando}
+          disabled={enviando || (tareas.length > 0 && marcadas === 0)}
+          title={tareas.length > 0 && marcadas === 0 ? "La planilla está vacía" : undefined}
           onClick={() =>
             void ejecutar(
               () =>
@@ -185,13 +148,13 @@ export function RegistrarPreventivo({
                   observaciones: obs,
                 }),
               (r) => {
-                router.push(malos.length ? `/trabajos/nuevo?activo=${activoId}&desde=${r.id}` : `/trabajos/${r.id}`);
+                router.push(`/trabajos/${r.id}`);
                 router.refresh();
               },
             )
           }
         >
-          {enviando ? "Guardando…" : "Registrar como hecho"}
+          {enviando ? "Guardando…" : tareas.length > 0 && marcadas === 0 ? "Completá la planilla" : "Registrar como hecho"}
         </button>
       </div>
     </div>

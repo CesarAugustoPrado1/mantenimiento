@@ -70,6 +70,11 @@ export const cotizaciones = pgTable("cotizaciones", {
   fecha: date("fecha").primaryKey(),
   arsPorUsd: numeric("ars_por_usd", { precision: 12, scale: 2 }).notNull(),
   nota: text("nota"),
+  /**
+   * "manual" o "auto:<casa>" (auto:oficial, auto:bolsa...). La carga
+   * automática nunca pisa una manual: si alguien la corrigió a mano, manda.
+   */
+  fuente: text("fuente").notNull().default("manual"),
 });
 
 /* -------------------------------------------------------------------------- */
@@ -220,6 +225,9 @@ export type EstadoActivo = (typeof estadoActivoEnum.enumValues)[number];
 export const propiedadEnum = pgEnum("propiedad", ["empresa", "empleado"]);
 export type Propiedad = (typeof propiedadEnum.enumValues)[number];
 
+export const combustibleEnum = pgEnum("combustible", ["diesel", "nafta", "gnc", "electrico"]);
+export type Combustible = (typeof combustibleEnum.enumValues)[number];
+
 export type Caracteristica = { clave: string; valor: string };
 
 export const activos = pgTable(
@@ -241,6 +249,8 @@ export const activos = pgTable(
     /** Vehículo de un empleado, o el conductor habitual de uno de la empresa. */
     responsableId: integer("responsable_id").references(() => usuarios.id),
     medidor: medidorEnum("medidor").notNull().default("ninguno"),
+    /** Null = no carga combustible (o no nos interesa medirlo). */
+    combustible: combustibleEnum("combustible"),
     estado: estadoActivoEnum("estado").notNull().default("operativo"),
     /** Ficha técnica libre: potencia, capacidad, aceite que lleva, etc. */
     caracteristicas: jsonb("caracteristicas").$type<Caracteristica[]>().notNull().default([]),
@@ -294,6 +304,13 @@ export const planes = pgTable("planes", {
   herramientas: text("herramientas"),
   desdeFecha: date("desde_fecha"),
   desdeUso: numeric("desde_uso", { precision: 12, scale: 1 }),
+  /**
+   * Las columnas de la planilla. Vacío = una sola columna ("Estado").
+   * Ej. carrusel: Vidrios, Ruedas, Arrastres, Guías, Tramo de cadena.
+   * Ej. revisión de sector: Limpieza, Rotura, Desgaste, Falla, Cambiar.
+   * Cada celda se marca ✓ (bien), ✗ (mal) o — (no se revisó).
+   */
+  columnas: jsonb("columnas").$type<string[]>().notNull().default([]),
   activo: boolean("activo").notNull().default(true),
   creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -308,10 +325,18 @@ export const accionTareaEnum = pgEnum("accion_tarea", [
 ]);
 export type AccionTarea = (typeof accionTareaEnum.enumValues)[number];
 
+/**
+ * Una fila de la planilla. `seccion` agrupa ("Trompo 2", "Túnel") y
+ * `activoId` dice a qué equipo pertenece esa sección cuando la planilla
+ * recorre varios (la revisión diaria de un sector): un ✗ ahí abre el
+ * correctivo sobre ESE equipo, no sobre el sector.
+ */
 export const planTareas = pgTable("plan_tareas", {
   id: serial("id").primaryKey(),
   planId: integer("plan_id").notNull().references(() => planes.id, { onDelete: "cascade" }),
   orden: integer("orden").notNull().default(0),
+  seccion: text("seccion"),
+  activoId: integer("activo_id").references(() => activos.id),
   accion: accionTareaEnum("accion").notNull().default("chequear"),
   descripcion: text("descripcion").notNull(),
 });
@@ -400,11 +425,21 @@ export const trabajos = pgTable(
   ],
 );
 
+export type ValorCelda = "ok" | "mal" | "na";
+
+/**
+ * Copia de la fila de la planilla tal como se completó. `valores` guarda cada
+ * celda por nombre de columna; `resultado` es el resumen de la fila (no_ok si
+ * alguna celda dio mal) para poder consultarlo sin abrir el json.
+ */
 export const trabajoTareas = pgTable("trabajo_tareas", {
   id: serial("id").primaryKey(),
   trabajoId: integer("trabajo_id").notNull().references(() => trabajos.id, { onDelete: "cascade" }),
+  seccion: text("seccion"),
+  activoId: integer("activo_id").references(() => activos.id),
   accion: accionTareaEnum("accion").notNull(),
   descripcion: text("descripcion").notNull(),
+  valores: jsonb("valores").$type<Record<string, ValorCelda>>().notNull().default({}),
   resultado: resultadoTareaEnum("resultado").notNull(),
   nota: text("nota"),
 });
@@ -489,3 +524,32 @@ export const compraItems = pgTable("compra_items", {
   recibido: numeric("recibido", { precision: 12, scale: 2 }),
   precioUnitario: numeric("precio_unitario", { precision: 14, scale: 2 }),
 });
+
+/* -------------------------------------------------------------------------- */
+/* Combustible                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Cada bidón (o carga) que se le pone a un equipo. Con la lectura del
+ * horómetro/odómetro al cargar, el consumo sale exacto: litros cargados entre
+ * dos lecturas / horas (o km) entre esas lecturas. Si viene de un insumo del
+ * pañol (tambor de gasoil), también se descuenta de ahí.
+ */
+export const cargasCombustible = pgTable(
+  "cargas_combustible",
+  {
+    id: serial("id").primaryKey(),
+    activoId: integer("activo_id").notNull().references(() => activos.id),
+    fecha: date("fecha").notNull(),
+    litros: numeric("litros", { precision: 10, scale: 2 }).notNull(),
+    /** Horas o km al momento de cargar. */
+    lectura: numeric("lectura", { precision: 12, scale: 1 }),
+    /** Pesos por litro, a la fecha. Opcional. */
+    precioLitro: numeric("precio_litro", { precision: 12, scale: 2 }),
+    insumoId: integer("insumo_id").references(() => insumos.id),
+    usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+    nota: text("nota"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("cargas_activo_idx").on(t.activoId, t.fecha)],
+);

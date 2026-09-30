@@ -6,7 +6,11 @@ import { guardarPlan } from "@/lib/acciones/activos";
 import { useAccion } from "@/components/usar-accion";
 import { Aviso } from "@/components/ui";
 import { Campo, Interruptor } from "@/components/admin";
+import { filasNumeradas } from "@/lib/planilla";
 import type { AccionTarea, Medidor } from "@/lib/db/schema";
+
+type Fila = { accion: AccionTarea; descripcion: string };
+export type Seccion = { nombre: string; activoId: number | null; filas: Fila[] };
 
 export type DatosPlan = {
   id?: number;
@@ -23,66 +27,101 @@ export type DatosPlan = {
   desdeFecha: string;
   desdeUso: string;
   activo: boolean;
-  tareas: Array<{ accion: AccionTarea; descripcion: string }>;
+  columnas: string[];
+  secciones: Seccion[];
   materiales: Array<{ insumoId: number | null; descripcion: string; cantidad: string }>;
 };
 
 const ACCIONES: AccionTarea[] = ["chequear", "cambiar", "ajustar", "limpiar", "lubricar", "otro"];
 
-/** Plantillas para no arrancar de cero. */
-const PLANTILLAS: Record<string, Pick<DatosPlan, "nombre" | "tareas">> = {
+const filas = (accion: AccionTarea, ...descripciones: string[]): Fila[] =>
+  descripciones.map((descripcion) => ({ accion, descripcion }));
+const seccion = (nombre: string, ...f: Fila[][]): Seccion => ({ nombre, activoId: null, filas: f.flat() });
+
+/**
+ * Plantillas para no arrancar de cero. Las tres últimas son las planillas en
+ * papel que ya se usan en planta, tal cual.
+ */
+const PLANTILLAS: Record<string, Pick<DatosPlan, "nombre" | "columnas" | "secciones"> & { cadaDias?: string }> = {
   aceite: {
     nombre: "Cambio de aceite y filtros",
-    tareas: [
-      { accion: "cambiar", descripcion: "Aceite de motor" },
-      { accion: "cambiar", descripcion: "Filtro de aceite" },
-      { accion: "chequear", descripcion: "Filtro de aire (cambiar si hace falta)" },
-      { accion: "chequear", descripcion: "Filtro de combustible" },
-      { accion: "chequear", descripcion: "Niveles: refrigerante, frenos, dirección" },
+    columnas: [],
+    secciones: [
+      seccion("", filas("cambiar", "Aceite de motor", "Filtro de aceite"), filas("chequear", "Filtro de aire (cambiar si hace falta)", "Filtro de combustible", "Niveles: refrigerante, frenos, dirección")),
     ],
   },
   general: {
     nombre: "Revisión general",
-    tareas: [
-      { accion: "chequear", descripcion: "Correas (tensión y desgaste)" },
-      { accion: "chequear", descripcion: "Cubiertas: presión y desgaste" },
-      { accion: "chequear", descripcion: "Frenos" },
-      { accion: "chequear", descripcion: "Luces" },
-      { accion: "chequear", descripcion: "Pérdidas de fluidos" },
+    columnas: [],
+    secciones: [seccion("", filas("chequear", "Correas (tensión y desgaste)", "Cubiertas: presión y desgaste", "Frenos", "Luces", "Pérdidas de fluidos"))],
+  },
+  clark: {
+    nombre: "Control de clark",
+    columnas: [],
+    secciones: [
+      seccion(
+        "",
+        filas("chequear", "Nivel aceite motor", "Nivel aceite hidráulico", "Nivel líquido refrigerante"),
+        filas("limpiar", "Limpieza filtro de aire"),
+        filas("lubricar", "Engrase"),
+      ),
     ],
   },
-  engrase: {
-    nombre: "Engrase general",
-    tareas: [
-      { accion: "lubricar", descripcion: "Puntos de engrase según manual" },
-      { accion: "chequear", descripcion: "Juego en rodamientos" },
-      { accion: "limpiar", descripcion: "Limpieza general del equipo" },
+  carrusel: {
+    nombre: "Control carrusel de mesas",
+    columnas: ["Vidrios", "Ruedas", "Arrastres", "Guías", "Tramo de cadena"],
+    secciones: [{ nombre: "", activoId: null, filas: filasNumeradas("Mesa", 1, 108).map((d) => ({ accion: "chequear", descripcion: d })) }],
+  },
+  sector: {
+    nombre: "Revisión diaria sector",
+    cadaDias: "1",
+    columnas: ["Limpieza", "Rotura", "Desgaste", "Falla", "Cambiar"],
+    secciones: [
+      seccion("Trompo 2", filas("chequear", "Motor", "Reductor", "Tablero", "Tambor", "Plataforma")),
+      seccion("Mesa vibrado", filas("chequear", "Resortes", "Teclas", "Cables", "Tapa de mesa", "Batea", "Cucharas", "Mezclador")),
+      seccion("Sistema de agua", filas("chequear", "Manguera", "Pico de agua")),
+      seccion("Túnel", filas("chequear", "Motores", "Cinta transportadora", "Resistencias", "Sensores", "Cuchilla", "Cinta de cuchilla", "Rodamientos")),
     ],
   },
 };
+
+const COLUMNAS_TIPICAS = [
+  ["Limpieza", "Rotura", "Desgaste", "Falla", "Cambiar"],
+  ["Vidrios", "Ruedas", "Arrastres", "Guías", "Tramo de cadena"],
+];
 
 export function FormularioPlan({
   inicial,
   medidor,
   usuarios,
   insumos,
+  activos,
 }: {
   inicial: DatosPlan;
   medidor: Medidor;
   usuarios: Array<{ id: number; nombre: string; rol: string }>;
   insumos: Array<{ id: number; nombre: string; unidad: string; stock: number }>;
+  activos: Array<{ id: number; nombre: string }>;
 }) {
   const router = useRouter();
   const { ejecutar, enviando, error } = useAccion();
   const [d, setD] = useState(inicial);
+  const [columnaNueva, setColumnaNueva] = useState("");
   const set = <K extends keyof DatosPlan>(k: K, v: DatosPlan[K]) => setD({ ...d, [k]: v });
   const u = medidor === "km" ? "km" : "horas";
   const hayUso = medidor !== "ninguno";
+  const totalFilas = d.secciones.reduce((s, x) => s + x.filas.length, 0);
 
-  const setTarea = (i: number, t: Partial<DatosPlan["tareas"][number]>) =>
-    set("tareas", d.tareas.map((x, j) => (j === i ? { ...x, ...t } : x)));
+  const setSeccion = (i: number, x: Partial<Seccion>) =>
+    set("secciones", d.secciones.map((s, j) => (j === i ? { ...s, ...x } : s)));
   const setMaterial = (i: number, m: Partial<DatosPlan["materiales"][number]>) =>
     set("materiales", d.materiales.map((x, j) => (j === i ? { ...x, ...m } : x)));
+
+  function agregarColumna(nombre: string) {
+    const n = nombre.trim();
+    if (n && !d.columnas.includes(n)) set("columnas", [...d.columnas, n]);
+    setColumnaNueva("");
+  }
 
   return (
     <div className="space-y-4">
@@ -96,7 +135,15 @@ export function FormularioPlan({
               key={k}
               type="button"
               className="rounded-full bg-white px-3 py-1 font-semibold ring-1 ring-slate-300"
-              onClick={() => setD({ ...d, nombre: p.nombre, tareas: p.tareas })}
+              onClick={() =>
+                setD({
+                  ...d,
+                  nombre: p.nombre,
+                  columnas: p.columnas,
+                  secciones: structuredClone(p.secciones),
+                  cadaDias: p.cadaDias ?? d.cadaDias,
+                })
+              }
             >
               {p.nombre}
             </button>
@@ -117,7 +164,7 @@ export function FormularioPlan({
             Periodicidad {hayUso && <span className="font-normal text-slate-500">— lo que llegue primero</span>}
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Campo etiqueta="Cada cuántos días">
+            <Campo etiqueta="Cada cuántos días" ayuda="1 = revisión diaria.">
               <input className="campo" inputMode="numeric" value={d.cadaDias} onChange={(e) => set("cadaDias", e.target.value)} placeholder="180" />
             </Campo>
             {hayUso && (
@@ -150,11 +197,7 @@ export function FormularioPlan({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Campo etiqueta="¿Quién lo hace?">
-            <select
-              className="campo"
-              value={d.responsableId ?? ""}
-              onChange={(e) => set("responsableId", e.target.value ? Number(e.target.value) : null)}
-            >
+            <select className="campo" value={d.responsableId ?? ""} onChange={(e) => set("responsableId", e.target.value ? Number(e.target.value) : null)}>
               <option value="">Nadie de adentro / sin asignar</option>
               {usuarios.map((x) => (
                 <option key={x.id} value={x.id}>
@@ -169,26 +212,65 @@ export function FormularioPlan({
         </div>
       </div>
 
-      <div className="tarjeta space-y-3 p-5">
-        <p className="font-bold">Qué hay que hacer</p>
-        {d.tareas.map((t, i) => (
-          <div key={i} className="flex gap-2">
-            <select className="campo w-36" value={t.accion} onChange={(e) => setTarea(i, { accion: e.target.value as AccionTarea })}>
-              {ACCIONES.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
-            <input className="campo flex-1" value={t.descripcion} onChange={(e) => setTarea(i, { descripcion: e.target.value })} placeholder="Correa del alternador" />
-            <button type="button" className="px-2 text-slate-400 hover:text-red-600" aria-label="Quitar" onClick={() => set("tareas", d.tareas.filter((_, j) => j !== i))}>
-              ✕
-            </button>
+      <div className="tarjeta space-y-4 p-5">
+        <div>
+          <p className="font-bold">La planilla</p>
+          <p className="text-xs text-slate-500">
+            Filas (lo que se revisa) por columnas (qué se mira de cada una). Cada celda se marca ✓ bien, ✗ mal o — no se revisó.
+            Sin columnas, cada fila tiene una sola casilla.
+          </p>
+        </div>
+
+        <div>
+          <p className="etiqueta">Columnas</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {d.columnas.map((c) => (
+              <span key={c} className="chip gap-1 bg-slate-900 py-1 text-white">
+                {c}
+                <button type="button" aria-label={`Quitar ${c}`} onClick={() => set("columnas", d.columnas.filter((x) => x !== c))}>
+                  ✕
+                </button>
+              </span>
+            ))}
+            {d.columnas.length === 0 && <span className="text-sm text-slate-500">Una sola casilla por fila.</span>}
           </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <input
+              className="campo w-48"
+              value={columnaNueva}
+              placeholder="Nueva columna"
+              onChange={(e) => setColumnaNueva(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && agregarColumna(columnaNueva)}
+            />
+            <button type="button" className="boton-secundario" onClick={() => agregarColumna(columnaNueva)}>
+              Agregar
+            </button>
+            {COLUMNAS_TIPICAS.map((cs) => (
+              <button key={cs[0]} type="button" className="text-sm font-semibold text-slate-600 underline" onClick={() => set("columnas", cs)}>
+                {cs.join(" / ")}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {d.secciones.map((s, i) => (
+          <EditorSeccion
+            key={i}
+            seccion={s}
+            activos={activos}
+            varias={d.secciones.length > 1 || !!s.nombre}
+            cambiar={(x) => setSeccion(i, x)}
+            quitar={() => set("secciones", d.secciones.filter((_, j) => j !== i))}
+          />
         ))}
-        <button type="button" className="text-sm font-semibold text-slate-600 underline" onClick={() => set("tareas", [...d.tareas, { accion: "chequear", descripcion: "" }])}>
-          + Tarea
+        <button
+          type="button"
+          className="text-sm font-semibold text-slate-600 underline"
+          onClick={() => set("secciones", [...d.secciones, { nombre: "", activoId: null, filas: [{ accion: "chequear", descripcion: "" }] }])}
+        >
+          + Sección
         </button>
+        <p className="text-xs text-slate-500">{totalFilas} fila(s) en total.</p>
       </div>
 
       <div className="tarjeta space-y-3 p-5">
@@ -253,11 +335,15 @@ export function FormularioPlan({
               () =>
                 guardarPlan({
                   ...d,
-                  materiales: d.materiales.map((m) => ({
-                    insumoId: m.insumoId,
-                    descripcion: m.descripcion || null,
-                    cantidad: m.cantidad,
-                  })),
+                  tareas: d.secciones.flatMap((s) =>
+                    s.filas.map((f) => ({
+                      seccion: s.nombre.trim() || null,
+                      activoId: s.activoId,
+                      accion: f.accion,
+                      descripcion: f.descripcion,
+                    })),
+                  ),
+                  materiales: d.materiales.map((m) => ({ insumoId: m.insumoId, descripcion: m.descripcion || null, cantidad: m.cantidad })),
                 }),
               () => {
                 router.push(`/activos/${d.activoId}`);
@@ -268,6 +354,99 @@ export function FormularioPlan({
         >
           {enviando ? "Guardando…" : "Guardar plan"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function EditorSeccion({
+  seccion: s,
+  activos,
+  varias,
+  cambiar,
+  quitar,
+}: {
+  seccion: Seccion;
+  activos: Array<{ id: number; nombre: string }>;
+  varias: boolean;
+  cambiar: (x: Partial<Seccion>) => void;
+  quitar: () => void;
+}) {
+  const [abierta, setAbierta] = useState(s.filas.length <= 20);
+  const [numeradas, setNumeradas] = useState<{ prefijo: string; desde: string; hasta: string } | null>(null);
+  const setFila = (i: number, f: Partial<Fila>) => cambiar({ filas: s.filas.map((x, j) => (j === i ? { ...x, ...f } : x)) });
+
+  return (
+    <div className="space-y-2 rounded-xl p-3 ring-1 ring-slate-200">
+      {varias && (
+        <div className="flex flex-wrap gap-2">
+          <input className="campo min-w-40 flex-1 font-semibold" value={s.nombre} placeholder="Sección (ej. Túnel)" onChange={(e) => cambiar({ nombre: e.target.value })} />
+          <select
+            className="campo w-auto min-w-48"
+            value={s.activoId ?? ""}
+            title="Si la sección es otro equipo, un ✗ abre el correctivo sobre ese equipo."
+            onChange={(e) => cambiar({ activoId: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">Es parte de este equipo</option>
+            {activos.map((a) => (
+              <option key={a.id} value={a.id}>
+                Es el equipo: {a.nombre}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="px-2 text-slate-400 hover:text-red-600" aria-label="Quitar sección" onClick={quitar}>
+            ✕
+          </button>
+        </div>
+      )}
+      {abierta ? (
+        s.filas.map((f, i) => (
+          <div key={i} className="flex gap-2">
+            <select className="campo w-32" value={f.accion} onChange={(e) => setFila(i, { accion: e.target.value as AccionTarea })}>
+              {ACCIONES.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+            <input className="campo flex-1" value={f.descripcion} onChange={(e) => setFila(i, { descripcion: e.target.value })} placeholder="Correa del alternador" />
+            <button type="button" className="px-2 text-slate-400 hover:text-red-600" aria-label="Quitar" onClick={() => cambiar({ filas: s.filas.filter((_, j) => j !== i) })}>
+              ✕
+            </button>
+          </div>
+        ))
+      ) : (
+        <button type="button" className="text-sm text-slate-600 underline" onClick={() => setAbierta(true)}>
+          {s.filas.length} filas ({s.filas[0]?.descripcion} … {s.filas[s.filas.length - 1]?.descripcion}) — mostrar
+        </button>
+      )}
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <button type="button" className="font-semibold text-slate-600 underline" onClick={() => cambiar({ filas: [...s.filas, { accion: "chequear", descripcion: "" }] })}>
+          + Fila
+        </button>
+        {numeradas ? (
+          <span className="flex flex-wrap items-center gap-1.5">
+            <input className="campo w-28" value={numeradas.prefijo} onChange={(e) => setNumeradas({ ...numeradas, prefijo: e.target.value })} />
+            <input className="campo w-20" inputMode="numeric" value={numeradas.desde} onChange={(e) => setNumeradas({ ...numeradas, desde: e.target.value })} />
+            a
+            <input className="campo w-20" inputMode="numeric" value={numeradas.hasta} onChange={(e) => setNumeradas({ ...numeradas, hasta: e.target.value })} />
+            <button
+              type="button"
+              className="boton-secundario min-h-10"
+              onClick={() => {
+                const nuevas = filasNumeradas(numeradas.prefijo, Number(numeradas.desde), Number(numeradas.hasta));
+                cambiar({ filas: [...s.filas.filter((f) => f.descripcion), ...nuevas.map((descripcion) => ({ accion: "chequear" as const, descripcion }))] });
+                setNumeradas(null);
+              }}
+            >
+              Agregar
+            </button>
+          </span>
+        ) : (
+          <button type="button" className="font-semibold text-slate-600 underline" onClick={() => setNumeradas({ prefijo: "Mesa", desde: "1", hasta: "10" })}>
+            + Filas numeradas (Mesa 1 … N)
+          </button>
+        )}
       </div>
     </div>
   );

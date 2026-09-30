@@ -33,6 +33,7 @@ export default async function NuevoActivo({ searchParams }: { searchParams: Prom
           propiedad: "empresa",
           responsableId: null,
           medidor: clase === "vehiculo" ? "km" : "ninguno",
+          combustible: null,
           estado: "operativo",
           caracteristicas: [],
           nota: "",

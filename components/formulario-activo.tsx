@@ -6,7 +6,7 @@ import { guardarActivo } from "@/lib/acciones/activos";
 import { useAccion } from "./usar-accion";
 import { Aviso } from "./ui";
 import { Campo } from "./admin";
-import type { Caracteristica, ClaseActivo, EstadoActivo, Medidor, Propiedad } from "@/lib/db/schema";
+import type { Caracteristica, ClaseActivo, Combustible, EstadoActivo, Medidor, Propiedad } from "@/lib/db/schema";
 
 export type DatosActivo = {
   id?: number;
@@ -23,6 +23,7 @@ export type DatosActivo = {
   propiedad: Propiedad;
   responsableId: number | null;
   medidor: Medidor;
+  combustible: Combustible | null;
   estado: EstadoActivo;
   caracteristicas: Caracteristica[];
   nota: string;
@@ -113,6 +114,22 @@ export function FormularioActivo({
           </select>
         </Campo>
       </div>
+      <Campo
+        etiqueta="Combustible"
+        ayuda="Si carga combustible, cada carga se registra y la app calcula el consumo por hora (o por km)."
+      >
+        <select
+          className="campo"
+          value={d.combustible ?? ""}
+          onChange={(e) => set("combustible", (e.target.value || null) as Combustible | null)}
+        >
+          <option value="">No se registra</option>
+          <option value="diesel">Diésel / gasoil</option>
+          <option value="nafta">Nafta</option>
+          <option value="gnc">GNC</option>
+          <option value="electrico">Eléctrico</option>
+        </select>
+      </Campo>
       <div className="grid gap-3 sm:grid-cols-3">
         {esVehiculo && (
           <Campo etiqueta="Es de">

@@ -1,13 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, gt, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
 import { activos, lecturas, planes, planMateriales, planTareas } from "../db/schema";
 import { autorizar } from "../auth";
 import { CONFIGURAN } from "../permisos";
 import { hoyAR } from "../formato";
+import { guardarLectura } from "../lecturas";
 import { ejecutar, fallar, type Resultado } from "./comun";
 import { aNumeric, fecha, fechaOpcional, id, nombre, num, numOpcional, texto } from "./validacion";
 
@@ -30,6 +31,7 @@ const esquemaActivo = z.object({
   propiedad: z.enum(["empresa", "empleado"]),
   responsableId: id.nullable().optional(),
   medidor: z.enum(["ninguno", "km", "horas"]),
+  combustible: z.enum(["diesel", "nafta", "gnc", "electrico"]).nullable(),
   estado: z.enum(["operativo", "con_falla", "fuera_de_servicio", "baja"]),
   caracteristicas: z
     .array(z.object({ clave: z.string().trim().max(60), valor: z.string().trim().max(200) }))
@@ -68,6 +70,7 @@ export async function guardarActivo(
       propiedad: d.propiedad,
       responsableId: d.responsableId ?? null,
       medidor: d.medidor,
+      combustible: d.combustible,
       estado: d.estado,
       caracteristicas: d.caracteristicas.filter((c) => c.clave && c.valor),
       nota: d.nota,
@@ -122,38 +125,9 @@ export async function cargarLectura(
       fallar("Solo podés cargar el kilometraje de tus vehículos.");
     }
 
-    const [anterior] = await db
-      .select({ valor: lecturas.valor, fecha: lecturas.fecha })
-      .from(lecturas)
-      .where(and(eq(lecturas.activoId, d.activoId), lt(lecturas.fecha, d.fecha)))
-      .orderBy(desc(lecturas.fecha))
-      .limit(1);
-    if (anterior && d.valor < Number(anterior.valor)) {
-      fallar(`El ${anterior.fecha.split("-").reverse().join("/")} ya se cargó ${anterior.valor}: no puede ser menos.`);
-    }
-    const [siguiente] = await db
-      .select({ valor: lecturas.valor, fecha: lecturas.fecha })
-      .from(lecturas)
-      .where(and(eq(lecturas.activoId, d.activoId), gt(lecturas.fecha, d.fecha)))
-      .orderBy(lecturas.fecha)
-      .limit(1);
-    if (siguiente && d.valor > Number(siguiente.valor)) {
-      fallar(`El ${siguiente.fecha.split("-").reverse().join("/")} hay cargado ${siguiente.valor}: no puede ser más.`);
-    }
-
-    await db
-      .insert(lecturas)
-      .values({
-        activoId: d.activoId,
-        fecha: d.fecha,
-        valor: String(d.valor),
-        usuarioId: yo.uid,
-        nota: d.nota,
-      })
-      .onConflictDoUpdate({
-        target: [lecturas.activoId, lecturas.fecha],
-        set: { valor: String(d.valor), usuarioId: yo.uid, nota: d.nota },
-      });
+    await db.transaction((tx) =>
+      guardarLectura(tx, { activoId: d.activoId, fecha: d.fecha, valor: d.valor, usuarioId: yo.uid, nota: d.nota }),
+    );
     revalidatePath("/", "layout");
   });
 }
@@ -177,14 +151,17 @@ const esquemaPlan = z.object({
   desdeFecha: fechaOpcional,
   desdeUso: numOpcional,
   activo: z.boolean(),
+  columnas: z.array(z.string().trim().max(40)).max(12),
   tareas: z
     .array(
       z.object({
+        seccion: z.string().trim().max(80).nullable(),
+        activoId: id.nullable(),
         accion: z.enum(["chequear", "cambiar", "ajustar", "limpiar", "lubricar", "otro"]),
         descripcion: z.string().trim().max(300),
       }),
     )
-    .max(60),
+    .max(400, "Una planilla puede tener hasta 400 filas."),
   materiales: z
     .array(
       z.object({
@@ -252,6 +229,7 @@ export async function guardarPlan(
       herramientas: d.herramientas,
       desdeFecha: d.desdeFecha ?? hoyAR(),
       desdeUso: aNumeric(desdeUso),
+      columnas: [...new Set(d.columnas.filter(Boolean))],
       activo: d.activo,
     };
 
@@ -268,7 +246,14 @@ export async function guardarPlan(
       }
       if (tareas.length) {
         await tx.insert(planTareas).values(
-          tareas.map((t, i) => ({ planId: pid, orden: i, accion: t.accion, descripcion: t.descripcion })),
+          tareas.map((t, i) => ({
+            planId: pid,
+            orden: i,
+            seccion: t.seccion || null,
+            activoId: t.activoId,
+            accion: t.accion,
+            descripcion: t.descripcion,
+          })),
         );
       }
       if (materiales.length) {

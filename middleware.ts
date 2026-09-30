@@ -40,6 +40,6 @@ export const config = {
      * `/api/version` queda afuera a proposito: sirve para saber que commit esta
      * desplegado, y tiene que contestar sin sesion.
      */
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|api/version).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|api/version|api/cron).*)",
   ],
 };

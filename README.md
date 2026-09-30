@@ -22,8 +22,8 @@ Tailwind v4 · Drizzle ORM · PostgreSQL en Neon · Vercel (región `gru1`).
    `1234`.
 2. **Vercel**: importar el repo y cargar en Settings → Environment Variables
    (Production): `DATABASE_URL` (la URL *pooled*, con `-pooler`),
-   `SESSION_SECRET` (una clave larga al azar) y `DIRECT_URL` (la directa, sin
-   `-pooler`). Si las cargás después del primer deploy, volvé a desplegar.
+   `SESSION_SECRET` (una clave larga al azar), `DIRECT_URL` (la directa, sin
+   `-pooler`) y `CRON_SECRET` (otra clave al azar: habilita el dólar automático). Si las cargás después del primer deploy, volvé a desplegar.
 3. Entrar con `admin` / `1234` y **cambiar el PIN** en Configuración → Usuarios.
 4. Crear los usuarios (jefe de taller, técnicos, conductores, auditoría) y
    empezar a cargar: insumos, máquinas, vehículos y sus planes.
@@ -78,6 +78,7 @@ app/
     activos/      ficha, alta/edición, planes/[planId]
     trabajos/     historial; nuevo = reportar falla; preventivo/[planId]
     km/           carga de km/horas (pantalla del conductor)
+    combustible/  cargas de combustible y consumo L/h por equipo
     obras/        obras y tareas externas con bitácora
     informes/     anual y año contra año, en USD
     admin/        usuarios, categorías, causas, cotizaciones
@@ -86,6 +87,9 @@ lib/
   motor-stock.ts  el ÚNICO lugar que cambia el stock
   vencimientos.ts cálculo de vencimientos (puro, con tests)
   semaforo.ts     semáforo y compra sugerida (puro, con tests)
+  planilla.ts     planillas filas × columnas y hallazgos (puro, con tests)
+  combustible.ts  rendimiento L/h por período y por mes (puro, con tests)
+  cotizacion.ts   trae el dólar de internet (cron diario en vercel.json)
   consultas.ts    agenda y opciones compartidas
   acciones/       server actions, cada una revalida permisos
   permisos.ts     rol → rutas y navegación

@@ -8,6 +8,9 @@ import { cotizaciones, usuarios } from "../db/schema";
 import { autorizar, hashPin } from "../auth";
 import { CONFIGURAN, ROLES } from "../permisos";
 import { ejecutar, fallar, type Resultado } from "./comun";
+import { CLAVE_CASA, escribirConfig } from "../configuracion";
+import { actualizarCotizaciones, type ResultadoCotizacion } from "../cotizacion";
+import { CASAS } from "../cotizacion-api";
 import { fecha, id, num, texto } from "./validacion";
 
 const esquemaUsuario = z.object({
@@ -86,10 +89,10 @@ export async function guardarCotizacion(entrada: z.input<typeof esquemaCotizacio
     if (d.arsPorUsd <= 0) fallar("La cotización tiene que ser mayor que cero.");
     await db
       .insert(cotizaciones)
-      .values({ fecha: d.fecha, arsPorUsd: String(d.arsPorUsd), nota: d.nota })
+      .values({ fecha: d.fecha, arsPorUsd: String(d.arsPorUsd), nota: d.nota, fuente: "manual" })
       .onConflictDoUpdate({
         target: cotizaciones.fecha,
-        set: { arsPorUsd: String(d.arsPorUsd), nota: d.nota },
+        set: { arsPorUsd: String(d.arsPorUsd), nota: d.nota, fuente: "manual" },
       });
     revalidatePath("/admin/cotizaciones");
     revalidatePath("/informes");
@@ -101,5 +104,37 @@ export async function borrarCotizacion(dia: string): Promise<Resultado<void>> {
     await autorizar(...CONFIGURAN);
     await db.delete(cotizaciones).where(eq(cotizaciones.fecha, fecha.parse(dia)));
     revalidatePath("/admin/cotizaciones");
+  });
+}
+
+/** Traer el dólar de internet ahora, sin esperar al cron. */
+export async function actualizarCotizacionesAhora(): Promise<Resultado<ResultadoCotizacion>> {
+  return ejecutar(async () => {
+    await autorizar(...CONFIGURAN);
+    try {
+      const r = await actualizarCotizaciones();
+      revalidatePath("/admin/cotizaciones");
+      revalidatePath("/informes");
+      return r;
+    } catch (e) {
+      console.error("[cotizacion]", e);
+      fallar("No se pudo consultar la cotización en internet. Probá más tarde o cargala a mano.");
+    }
+  });
+}
+
+/** Qué dólar usar. Al cambiarlo se vuelve a traer el historial de esa casa. */
+export async function elegirCasa(casa: string): Promise<Resultado<void>> {
+  return ejecutar(async () => {
+    await autorizar(...CONFIGURAN);
+    if (!(casa in CASAS)) fallar("Esa cotización no existe.");
+    await escribirConfig(CLAVE_CASA, casa);
+    try {
+      await actualizarCotizaciones();
+    } catch (e) {
+      console.error("[cotizacion]", e);
+    }
+    revalidatePath("/admin/cotizaciones");
+    revalidatePath("/informes");
   });
 }

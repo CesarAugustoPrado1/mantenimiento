@@ -1,5 +1,5 @@
 {
-  "id": "117eb637-ebea-4b23-a26e-2260988fa9cf",
+  "id": "71e4f503-506b-4a3e-ace0-bfe361fe81aa",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -97,6 +97,13 @@
           "notNull": true,
           "default": "'ninguno'"
         },
+        "combustible": {
+          "name": "combustible",
+          "type": "combustible",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
         "estado": {
           "name": "estado",
           "type": "estado_activo",
@@ -150,6 +157,142 @@
           "tableTo": "usuarios",
           "columnsFrom": [
             "responsable_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.cargas_combustible": {
+      "name": "cargas_combustible",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "activo_id": {
+          "name": "activo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha": {
+          "name": "fecha",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "litros": {
+          "name": "litros",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lectura": {
+          "name": "lectura",
+          "type": "numeric(12, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "precio_litro": {
+          "name": "precio_litro",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "insumo_id": {
+          "name": "insumo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nota": {
+          "name": "nota",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cargas_activo_idx": {
+          "name": "cargas_activo_idx",
+          "columns": [
+            {
+              "expression": "activo_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fecha",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "cargas_combustible_activo_id_activos_id_fk": {
+          "name": "cargas_combustible_activo_id_activos_id_fk",
+          "tableFrom": "cargas_combustible",
+          "tableTo": "activos",
+          "columnsFrom": [
+            "activo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "cargas_combustible_insumo_id_insumos_id_fk": {
+          "name": "cargas_combustible_insumo_id_insumos_id_fk",
+          "tableFrom": "cargas_combustible",
+          "tableTo": "insumos",
+          "columnsFrom": [
+            "insumo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "cargas_combustible_usuario_id_usuarios_id_fk": {
+          "name": "cargas_combustible_usuario_id_usuarios_id_fk",
+          "tableFrom": "cargas_combustible",
+          "tableTo": "usuarios",
+          "columnsFrom": [
+            "usuario_id"
           ],
           "columnsTo": [
             "id"
@@ -462,6 +605,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "fuente": {
+          "name": "fuente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'manual'"
         }
       },
       "indexes": {},
@@ -1381,6 +1531,18 @@
           "notNull": true,
           "default": 0
         },
+        "seccion": {
+          "name": "seccion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo_id": {
+          "name": "activo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "accion": {
           "name": "accion",
           "type": "accion_tarea",
@@ -1409,6 +1571,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "plan_tareas_activo_id_activos_id_fk": {
+          "name": "plan_tareas_activo_id_activos_id_fk",
+          "tableFrom": "plan_tareas",
+          "tableTo": "activos",
+          "columnsFrom": [
+            "activo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -1501,6 +1676,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "columnas": {
+          "name": "columnas",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "activo": {
           "name": "activo",
           "type": "boolean",
@@ -1567,6 +1749,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "seccion": {
+          "name": "seccion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo_id": {
+          "name": "activo_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "accion": {
           "name": "accion",
           "type": "accion_tarea",
@@ -1579,6 +1773,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "valores": {
+          "name": "valores",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "resultado": {
           "name": "resultado",
@@ -1607,6 +1808,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "trabajo_tareas_activo_id_activos_id_fk": {
+          "name": "trabajo_tareas_activo_id_activos_id_fk",
+          "tableFrom": "trabajo_tareas",
+          "tableTo": "activos",
+          "columnsFrom": [
+            "activo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -1975,6 +2189,16 @@
       "values": [
         "maquina",
         "vehiculo"
+      ]
+    },
+    "public.combustible": {
+      "name": "combustible",
+      "schema": "public",
+      "values": [
+        "diesel",
+        "nafta",
+        "gnc",
+        "electrico"
       ]
     },
     "public.estado_activo": {

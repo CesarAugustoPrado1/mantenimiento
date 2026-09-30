@@ -8,7 +8,8 @@ import type { ItemNav } from "@/lib/permisos";
 const ICONOS: Record<string, string> = {
   tablero: "📊",
   agenda: "📅",
-  km: "⛽",
+  km: "🔢",
+  combustible: "⛽",
   insumos: "📦",
   maquina: "🏭",
   vehiculo: "🚚",

@@ -19,6 +19,7 @@ export const CATEGORIAS = [
   "Tornillería y fijaciones",
   "Perfiles y caños",
   "Lubricantes y fluidos",
+  "Combustibles",
   "Filtros",
   "Eléctricos",
   "Pintura",

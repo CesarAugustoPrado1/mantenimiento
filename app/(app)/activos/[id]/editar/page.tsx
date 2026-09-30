@@ -39,6 +39,7 @@ export default async function EditarActivo({ params }: { params: Promise<{ id: s
           propiedad: a.propiedad,
           responsableId: a.responsableId,
           medidor: a.medidor,
+          combustible: a.combustible,
           estado: a.estado,
           caracteristicas: a.caracteristicas,
           nota: a.nota ?? "",

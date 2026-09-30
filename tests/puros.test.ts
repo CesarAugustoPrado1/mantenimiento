@@ -114,3 +114,79 @@ test("una estimación por km que ya pasó se muestra como hoy", () => {
   assert.equal(v.fechaAgenda, base.hoy);
   assert.equal(v.estado, "proximo");
 });
+
+import { columnasDe, filasNumeradas, hallazgos, resumenFila, tituloHallazgo } from "../lib/planilla";
+import { consumoAlto, rendimientoMensual, rendimientoPeriodo } from "../lib/combustible";
+import { leerHistorial, leerHoy } from "../lib/cotizacion-api";
+
+test("planilla: columnas por defecto y resumen de fila", () => {
+  assert.deepEqual(columnasDe([]), ["Estado"]);
+  assert.deepEqual(columnasDe([" Vidrios ", ""]), ["Vidrios"]);
+  assert.equal(resumenFila({ Vidrios: "ok", Ruedas: "mal" }), "no_ok");
+  assert.equal(resumenFila({ Vidrios: "ok", Ruedas: "na" }), "ok");
+  assert.equal(resumenFila({ Vidrios: "na" }), "no_aplica");
+});
+
+test("planilla: las 108 mesas del carrusel", () => {
+  const f = filasNumeradas("Mesa", 1, 108);
+  assert.equal(f.length, 108);
+  assert.equal(f[107], "Mesa 108");
+  assert.deepEqual(filasNumeradas("x", 5, 1), []);
+});
+
+test("planilla: cada ✗ es un hallazgo con su título", () => {
+  const h = hallazgos([
+    { seccion: "Túnel", descripcion: "Cuchilla", activoId: 7, valores: { Falla: "mal", Limpieza: "ok" } },
+    { seccion: null, descripcion: "Mesa 17", activoId: null, valores: { Ruedas: "mal" } },
+  ]);
+  assert.equal(h.length, 2);
+  assert.equal(tituloHallazgo(h[0]), "Túnel · Cuchilla: Falla");
+  assert.equal(h[0].activoId, 7);
+  assert.equal(tituloHallazgo({ seccion: null, fila: "Engrase", columna: "Estado", activoId: null }), "Engrase");
+});
+
+test("combustible: litros entre lecturas / horas entre lecturas", () => {
+  const lecturas = [
+    { fecha: "2026-09-01", valor: 1000 },
+    { fecha: "2026-09-15", valor: 1040 },
+    { fecha: "2026-09-30", valor: 1080 },
+  ];
+  const cargas = [
+    { fecha: "2026-09-01", litros: 20 }, // antes de medir: no cuenta
+    { fecha: "2026-09-10", litros: 20 },
+    { fecha: "2026-09-15", litros: 20 },
+    { fecha: "2026-09-25", litros: 20 },
+  ];
+  const r = rendimientoPeriodo(lecturas, cargas, "2026-09-01", "2026-09-30")!;
+  assert.equal(r.litros, 60);
+  assert.equal(r.uso, 80);
+  assert.equal(r.porUnidad, 0.75);
+  assert.equal(r.unidadesPorLitro!.toFixed(3), "1.333");
+  assert.equal(rendimientoPeriodo(lecturas.slice(0, 1), cargas, "2026-09-01", "2026-09-30"), null);
+});
+
+test("combustible: por mes y alerta de consumo alto", () => {
+  const lecturas = ["05", "06", "07", "08", "09", "10"].map((m, i) => ({ fecha: `2026-${m}-28`, valor: 1000 + i * 100 }));
+  const normal = ["06", "07", "08", "09"].map((m) => ({ fecha: `2026-${m}-10`, litros: 50 }));
+  const meses = rendimientoMensual(lecturas, [...normal, { fecha: "2026-10-10", litros: 50 }]);
+  assert.equal(meses[0].mes, "2026-10");
+  assert.equal(meses[0].porUnidad, 0.5);
+  assert.equal(consumoAlto(meses), false);
+  const alto = rendimientoMensual(lecturas, [...normal, { fecha: "2026-10-10", litros: 80 }]);
+  assert.equal(consumoAlto(alto), true);
+});
+
+test("cotización: historial y respaldo del día", () => {
+  const h = leerHistorial(
+    [
+      { casa: "oficial", compra: 900, venta: 950, fecha: "2023-12-29" },
+      { casa: "oficial", compra: 1400, venta: 1450, fecha: "2026-09-29" },
+      { casa: "oficial", venta: null, fecha: "2026-09-30" },
+    ],
+    "2024-01-01",
+  );
+  assert.deepEqual(h, [{ fecha: "2026-09-29", arsPorUsd: 1450 }]);
+  assert.deepEqual(leerHoy({ venta: 1460 }, "2026-09-30"), { fecha: "2026-09-30", arsPorUsd: 1460 });
+  assert.equal(leerHoy({}, "2026-09-30"), null);
+  assert.deepEqual(leerHistorial({ error: "x" }, "2024-01-01"), []);
+});

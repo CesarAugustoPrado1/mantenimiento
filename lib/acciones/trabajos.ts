@@ -8,6 +8,7 @@ import { activos, causas, lecturas, planes, trabajos, trabajoTareas } from "../d
 import { autorizar } from "../auth";
 import { CONFIGURAN, OPERAN } from "../permisos";
 import { hoyAR } from "../formato";
+import { resumenFila } from "../planilla";
 import { moverStock, type Tx } from "../motor-stock";
 import { ejecutar, fallar, type Resultado } from "./comun";
 import { aNumeric, fecha, fechaOpcional, id, nombre, num, numOpcional, texto } from "./validacion";
@@ -79,13 +80,15 @@ const esquemaPreventivo = z.object({
   tareas: z
     .array(
       z.object({
+        seccion: z.string().max(80).nullable(),
+        activoId: id.nullable(),
         accion,
         descripcion: z.string().trim().min(1).max(300),
-        resultado: z.enum(["ok", "corregido", "no_ok", "no_aplica"]),
+        valores: z.record(z.string().max(40), z.enum(["ok", "mal", "na"])),
         nota: texto(300),
       }),
     )
-    .max(60),
+    .max(400),
   consumos,
   horasHombre: numOpcional,
   costoManoObra: numOpcional,
@@ -136,9 +139,12 @@ export async function registrarPreventivo(
         await tx.insert(trabajoTareas).values(
           d.tareas.map((x) => ({
             trabajoId: t.id,
+            seccion: x.seccion,
+            activoId: x.activoId,
             accion: x.accion,
             descripcion: x.descripcion,
-            resultado: x.resultado,
+            valores: x.valores,
+            resultado: resumenFila(x.valores),
             nota: x.nota,
           })),
         );

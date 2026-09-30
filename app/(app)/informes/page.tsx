@@ -4,6 +4,8 @@ import { requerirSesion } from "@/lib/auth";
 import { fila, filas } from "@/lib/db/filas";
 import { nombreActivo } from "@/lib/consultas";
 import { fmtNum, fmtPesos, fmtUsd, hoyAR } from "@/lib/formato";
+import { casaCotizacion } from "@/lib/configuracion";
+import { CASAS } from "@/lib/cotizacion-api";
 import { Aviso, Pestanas, Titulo } from "@/components/ui";
 
 export const metadata = { title: "Informes · Taller" };
@@ -33,6 +35,12 @@ const GASTOS = sql`
     select m.fecha, m.cantidad * m.precio_unitario, 'Compras de insumos', null
       from movimientos_insumo m
      where m.tipo = 'ingreso' and m.precio_unitario is not null
+    union all
+    -- Combustible comprado afuera. Si salió del tambor del pañol, ya se contó
+    -- cuando se compró el tambor: no se suma dos veces.
+    select c.fecha, c.litros * c.precio_litro, 'Combustible', c.activo_id
+      from cargas_combustible c
+     where c.precio_litro is not null and c.insumo_id is null
   )
   select g.fecha, g.ars, g.rubro, g.activo_id,
          g.ars / nullif(coalesce(
@@ -59,7 +67,7 @@ export default async function Informes({ searchParams }: { searchParams: Promise
   const desde = `${anio}-01-01`;
   const hasta = `${anio}-12-31`;
 
-  const [resumen, porMes, porAnio, porRubro, causas, equipos, sinCotizacion] = await Promise.all([
+  const [resumen, porMes, porAnio, porRubro, causas, equipos, sinCotizacion, combustible, casa] = await Promise.all([
     fila<{ preventivos: number; correctivos: number; abiertos: number; horas_parada: number; horas_hombre: number; obras: number }>(sql`
       select count(*) filter (where tipo = 'preventivo')::int as preventivos,
              count(*) filter (where tipo = 'correctivo')::int as correctivos,
@@ -102,6 +110,15 @@ export default async function Informes({ searchParams }: { searchParams: Promise
        order by correctivos desc, horas desc
     `),
     fila<{ n: number }>(sql`select count(*)::int as n from (${GASTOS}) x where usd is null`),
+    filas<{ id: number; nombre: string; patente: string | null; codigo: string | null; medidor: "km" | "horas" | "ninguno"; litros: number; uso: number | null }>(sql`
+      select a.id, a.nombre, a.patente, a.codigo, a.medidor,
+             sum(c.litros)::float8 as litros,
+             (select max(valor) - min(valor) from lecturas l where l.activo_id = a.id and l.fecha between ${desde} and ${hasta})::float8 as uso
+        from cargas_combustible c join activos a on a.id = c.activo_id
+       where c.fecha between ${desde} and ${hasta}
+       group by a.id order by 6 desc
+    `),
+    casaCotizacion(),
   ]);
 
   const anios = Array.from(new Set([anioActual, ...porAnio.map((a) => a.anio)])).sort((a, b) => b - a);
@@ -114,7 +131,7 @@ export default async function Informes({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <Titulo detalle="Lo que se hizo, lo que se rompió y lo que costó. Los montos se comparan en dólares a la fecha de cada gasto.">
+      <Titulo detalle={`Lo que se hizo, lo que se rompió y lo que costó. Los montos se comparan en dólares (${CASAS[casa]}) a la fecha de cada gasto.`}>
         Informes
       </Titulo>
       <Pestanas actual={String(anio)} opciones={anios.map((a) => ({ valor: String(a), etiqueta: String(a), href: `/informes?anio=${a}` }))} />
@@ -261,6 +278,33 @@ export default async function Informes({ searchParams }: { searchParams: Promise
             </table>
           )}
         </section>
+        {combustible.length > 0 && (
+          <section className="tarjeta overflow-x-auto p-5 lg:col-span-2">
+            <h2 className="mb-3 font-bold">Combustible ({anio})</h2>
+            <table className="tabla">
+              <thead>
+                <tr>
+                  <th>Equipo</th>
+                  <th className="text-right">Litros</th>
+                  <th className="text-right">Horas / km</th>
+                  <th className="text-right">Consumo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {combustible.map((c) => (
+                  <tr key={c.id}>
+                    <td>{nombreActivo(c)}</td>
+                    <td className="text-right tabular-nums">{fmtNum(c.litros)}</td>
+                    <td className="text-right tabular-nums">{c.uso ? fmtNum(c.uso) : "—"}</td>
+                    <td className="text-right tabular-nums">
+                      {c.uso ? (c.medidor === "km" ? `${fmtNum(Math.round((c.litros / c.uso) * 10000) / 100)} L/100km` : `${fmtNum(Math.round((c.litros / c.uso) * 100) / 100)} L/h`) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
       </div>
     </>
   );

@@ -1,5 +1,6 @@
 CREATE TYPE "public"."accion_tarea" AS ENUM('chequear', 'cambiar', 'ajustar', 'limpiar', 'lubricar', 'otro');--> statement-breakpoint
 CREATE TYPE "public"."clase_activo" AS ENUM('maquina', 'vehiculo');--> statement-breakpoint
+CREATE TYPE "public"."combustible" AS ENUM('diesel', 'nafta', 'gnc', 'electrico');--> statement-breakpoint
 CREATE TYPE "public"."estado_activo" AS ENUM('operativo', 'con_falla', 'fuera_de_servicio', 'baja');--> statement-breakpoint
 CREATE TYPE "public"."estado_compra" AS ENUM('borrador', 'pedida', 'recibida', 'cancelada');--> statement-breakpoint
 CREATE TYPE "public"."estado_herramienta" AS ENUM('bueno', 'regular', 'en_reparacion', 'baja');--> statement-breakpoint
@@ -27,8 +28,22 @@ CREATE TABLE "activos" (
 	"propiedad" "propiedad" DEFAULT 'empresa' NOT NULL,
 	"responsable_id" integer,
 	"medidor" "medidor" DEFAULT 'ninguno' NOT NULL,
+	"combustible" "combustible",
 	"estado" "estado_activo" DEFAULT 'operativo' NOT NULL,
 	"caracteristicas" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"nota" text,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "cargas_combustible" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"activo_id" integer NOT NULL,
+	"fecha" date NOT NULL,
+	"litros" numeric(10, 2) NOT NULL,
+	"lectura" numeric(12, 1),
+	"precio_litro" numeric(12, 2),
+	"insumo_id" integer,
+	"usuario_id" integer NOT NULL,
 	"nota" text,
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -78,7 +93,8 @@ CREATE TABLE "config" (
 CREATE TABLE "cotizaciones" (
 	"fecha" date PRIMARY KEY NOT NULL,
 	"ars_por_usd" numeric(12, 2) NOT NULL,
-	"nota" text
+	"nota" text,
+	"fuente" text DEFAULT 'manual' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "herramienta_tipos" (
@@ -187,6 +203,8 @@ CREATE TABLE "plan_tareas" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"plan_id" integer NOT NULL,
 	"orden" integer DEFAULT 0 NOT NULL,
+	"seccion" text,
+	"activo_id" integer,
 	"accion" "accion_tarea" DEFAULT 'chequear' NOT NULL,
 	"descripcion" text NOT NULL
 );
@@ -205,6 +223,7 @@ CREATE TABLE "planes" (
 	"herramientas" text,
 	"desde_fecha" date,
 	"desde_uso" numeric(12, 1),
+	"columnas" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"activo" boolean DEFAULT true NOT NULL,
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -212,8 +231,11 @@ CREATE TABLE "planes" (
 CREATE TABLE "trabajo_tareas" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"trabajo_id" integer NOT NULL,
+	"seccion" text,
+	"activo_id" integer,
 	"accion" "accion_tarea" NOT NULL,
 	"descripcion" text NOT NULL,
+	"valores" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"resultado" "resultado_tarea" NOT NULL,
 	"nota" text
 );
@@ -257,6 +279,9 @@ CREATE TABLE "usuarios" (
 );
 --> statement-breakpoint
 ALTER TABLE "activos" ADD CONSTRAINT "activos_responsable_id_usuarios_id_fk" FOREIGN KEY ("responsable_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cargas_combustible" ADD CONSTRAINT "cargas_combustible_activo_id_activos_id_fk" FOREIGN KEY ("activo_id") REFERENCES "public"."activos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cargas_combustible" ADD CONSTRAINT "cargas_combustible_insumo_id_insumos_id_fk" FOREIGN KEY ("insumo_id") REFERENCES "public"."insumos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "cargas_combustible" ADD CONSTRAINT "cargas_combustible_usuario_id_usuarios_id_fk" FOREIGN KEY ("usuario_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "compra_items" ADD CONSTRAINT "compra_items_compra_id_compras_id_fk" FOREIGN KEY ("compra_id") REFERENCES "public"."compras"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "compra_items" ADD CONSTRAINT "compra_items_insumo_id_insumos_id_fk" FOREIGN KEY ("insumo_id") REFERENCES "public"."insumos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "compras" ADD CONSTRAINT "compras_creado_por_id_usuarios_id_fk" FOREIGN KEY ("creado_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -277,15 +302,18 @@ ALTER TABLE "obras" ADD CONSTRAINT "obras_creado_por_id_usuarios_id_fk" FOREIGN 
 ALTER TABLE "plan_materiales" ADD CONSTRAINT "plan_materiales_plan_id_planes_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."planes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "plan_materiales" ADD CONSTRAINT "plan_materiales_insumo_id_insumos_id_fk" FOREIGN KEY ("insumo_id") REFERENCES "public"."insumos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "plan_tareas" ADD CONSTRAINT "plan_tareas_plan_id_planes_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."planes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "plan_tareas" ADD CONSTRAINT "plan_tareas_activo_id_activos_id_fk" FOREIGN KEY ("activo_id") REFERENCES "public"."activos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "planes" ADD CONSTRAINT "planes_activo_id_activos_id_fk" FOREIGN KEY ("activo_id") REFERENCES "public"."activos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "planes" ADD CONSTRAINT "planes_responsable_id_usuarios_id_fk" FOREIGN KEY ("responsable_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trabajo_tareas" ADD CONSTRAINT "trabajo_tareas_trabajo_id_trabajos_id_fk" FOREIGN KEY ("trabajo_id") REFERENCES "public"."trabajos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "trabajo_tareas" ADD CONSTRAINT "trabajo_tareas_activo_id_activos_id_fk" FOREIGN KEY ("activo_id") REFERENCES "public"."activos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trabajos" ADD CONSTRAINT "trabajos_activo_id_activos_id_fk" FOREIGN KEY ("activo_id") REFERENCES "public"."activos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trabajos" ADD CONSTRAINT "trabajos_plan_id_planes_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."planes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trabajos" ADD CONSTRAINT "trabajos_reportado_por_id_usuarios_id_fk" FOREIGN KEY ("reportado_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trabajos" ADD CONSTRAINT "trabajos_realizado_por_id_usuarios_id_fk" FOREIGN KEY ("realizado_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "trabajos" ADD CONSTRAINT "trabajos_causa_id_causas_id_fk" FOREIGN KEY ("causa_id") REFERENCES "public"."causas"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "activos_codigo_uq" ON "activos" USING btree ("codigo");--> statement-breakpoint
+CREATE INDEX "cargas_activo_idx" ON "cargas_combustible" USING btree ("activo_id","fecha");--> statement-breakpoint
 CREATE UNIQUE INDEX "insumos_codigo_uq" ON "insumos" USING btree ("codigo");--> statement-breakpoint
 CREATE UNIQUE INDEX "lecturas_activo_fecha_uq" ON "lecturas" USING btree ("activo_id","fecha");--> statement-breakpoint
 CREATE INDEX "mov_insumo_insumo_idx" ON "movimientos_insumo" USING btree ("insumo_id","fecha");--> statement-breakpoint

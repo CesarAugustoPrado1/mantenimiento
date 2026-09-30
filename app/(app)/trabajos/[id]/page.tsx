@@ -6,7 +6,8 @@ import { fila, filas } from "@/lib/db/filas";
 import { causasActivas, insumosActivos, nombreActivo, usuariosActivos } from "@/lib/consultas";
 import { OPERAN } from "@/lib/permisos";
 import { fmtFecha, fmtNum, fmtPesos, hoyAR, UNIDAD_MEDIDOR } from "@/lib/formato";
-import type { EstadoActivo, Medidor } from "@/lib/db/schema";
+import type { EstadoActivo, Medidor, ValorCelda } from "@/lib/db/schema";
+import { COLUMNA_UNICA, hallazgos, tituloHallazgo } from "@/lib/planilla";
 import { Chip, ChipEstadoActivo, ChipPrioridad, Titulo, Volver } from "@/components/ui";
 import { Seguimiento } from "./seguimiento";
 
@@ -45,9 +46,9 @@ type Trabajo = {
 };
 
 const RESULTADO = {
-  ok: { texto: "OK", tono: "verde" },
+  ok: { texto: "✓", tono: "verde" },
   corregido: { texto: "Corregido", tono: "azul" },
-  no_ok: { texto: "Mal", tono: "rojo" },
+  no_ok: { texto: "✗", tono: "rojo" },
   no_aplica: { texto: "N/A", tono: "gris" },
 } as const;
 
@@ -76,8 +77,17 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
   if (sesion.rol === "conductor" && t.responsable_id !== sesion.uid) redirect("/sin-permiso");
 
   const [tareas, consumos] = await Promise.all([
-    filas<{ accion: string; descripcion: string; resultado: keyof typeof RESULTADO; nota: string | null }>(sql`
-      select accion, descripcion, resultado, nota from trabajo_tareas where trabajo_id = ${id} order by id
+    filas<{
+      seccion: string | null;
+      activoId: number | null;
+      accion: string;
+      descripcion: string;
+      valores: Record<string, ValorCelda>;
+      resultado: keyof typeof RESULTADO;
+      nota: string | null;
+    }>(sql`
+      select seccion, activo_id as "activoId", accion, descripcion, valores, resultado, nota
+        from trabajo_tareas where trabajo_id = ${id} order by id
     `),
     filas<{ nombre: string; unidad: string; cantidad: number; fecha: string }>(sql`
       select i.nombre, i.unidad, (-m.cantidad)::float8 as cantidad, m.fecha::text as fecha
@@ -86,6 +96,10 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
     `),
   ]);
 
+  const encontrados = hallazgos(tareas).map((h) => ({
+    ...h,
+    nota: tareas.find((x) => x.descripcion === h.fila && x.seccion === h.seccion)?.nota ?? null,
+  }));
   const u = UNIDAD_MEDIDOR[t.medidor];
   const puedeSeguir = t.tipo === "correctivo" && OPERAN.includes(sesion.rol);
   const [causas, usuarios, insumos] = puedeSeguir
@@ -171,17 +185,31 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
             {t.observaciones && <p className="whitespace-pre-line text-slate-600">{t.observaciones}</p>}
           </div>
 
-          {tareas.length > 0 && (
+          {tareas.length > 0 && <PlanillaHecha tareas={tareas} />}
+
+          {encontrados.length > 0 && (
             <div className="tarjeta p-5">
-              <p className="mb-2 font-bold">Checklist</p>
-              <ul className="space-y-1.5 text-sm">
-                {tareas.map((x, i) => (
-                  <li key={i} className="flex items-start justify-between gap-2">
+              <p className="mb-1 font-bold">Hallazgos ({encontrados.length})</p>
+              <p className="mb-3 text-xs text-slate-500">Cada ✗ de la planilla. Si hay que repararlo, abrí el correctivo desde acá.</p>
+              <ul className="space-y-2 text-sm">
+                {encontrados.map((h, i) => (
+                  <li key={i} className="flex flex-wrap items-center justify-between gap-2">
                     <span>
-                      <span className="capitalize">{x.accion}</span> {x.descripcion}
-                      {x.nota && <span className="block text-xs text-slate-500">{x.nota}</span>}
+                      <span className="font-semibold text-rojo">✗</span> {tituloHallazgo(h)}
+                      {h.nota && <span className="block text-xs text-slate-500">{h.nota}</span>}
                     </span>
-                    <Chip tono={RESULTADO[x.resultado].tono}>{RESULTADO[x.resultado].texto}</Chip>
+                    {sesion.rol !== "auditor" && (
+                      <Link
+                        className="boton-secundario min-h-9 px-3 text-sm"
+                        href={`/trabajos/nuevo?${new URLSearchParams({
+                          activo: String(h.activoId ?? t.activo_id),
+                          titulo: tituloHallazgo(h),
+                          falla: `Hallazgo del control «${t.titulo}» del ${fmtFecha(t.fecha)}.${h.nota ? ` ${h.nota}` : ""}`,
+                        })}`}
+                      >
+                        Abrir correctivo
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -231,5 +259,79 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
         )}
       </div>
     </>
+  );
+}
+
+const CELDA: Record<ValorCelda, string> = { ok: "✓", mal: "✗", na: "—" };
+
+function PlanillaHecha({
+  tareas,
+}: {
+  tareas: Array<{ seccion: string | null; accion: string; descripcion: string; valores: Record<string, ValorCelda>; resultado: keyof typeof RESULTADO; nota: string | null }>;
+}) {
+  const columnas = [...new Set(tareas.flatMap((x) => Object.keys(x.valores)))];
+  const unica = columnas.length <= 1 && (columnas[0] ?? COLUMNA_UNICA) === COLUMNA_UNICA;
+  const secciones = [...new Set(tareas.map((x) => x.seccion ?? ""))];
+  const malas = tareas.filter((x) => x.resultado === "no_ok").length;
+  return (
+    <div className="tarjeta p-5">
+      <p className="mb-2 font-bold">
+        Planilla <span className="text-sm font-normal text-slate-500">· {tareas.length} filas · {malas} con ✗</span>
+      </p>
+      {secciones.map((sec) => {
+        const lista = tareas.filter((x) => (x.seccion ?? "") === sec);
+        return (
+          <div key={sec} className="mb-3 last:mb-0">
+            {sec && <p className="mb-1 text-sm font-semibold text-slate-700">{sec}</p>}
+            {unica ? (
+              <ul className="space-y-1.5 text-sm">
+                {lista.map((x, i) => (
+                  <li key={i} className="flex items-start justify-between gap-2">
+                    <span>
+                      <span className="capitalize">{x.accion}</span> {x.descripcion}
+                      {x.nota && <span className="block text-xs text-slate-500">{x.nota}</span>}
+                    </span>
+                    <Chip tono={RESULTADO[x.resultado].tono}>{RESULTADO[x.resultado].texto}</Chip>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="tabla">
+                  <thead>
+                    <tr>
+                      <th />
+                      {columnas.map((c) => (
+                        <th key={c} className="text-center">
+                          {c}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lista.map((x, i) => (
+                      <tr key={i} className={x.resultado === "no_ok" ? "bg-rojo-suave" : undefined}>
+                        <td>
+                          {x.descripcion}
+                          {x.nota && <span className="block text-xs text-slate-500">{x.nota}</span>}
+                        </td>
+                        {columnas.map((c) => {
+                          const v = x.valores[c] ?? "na";
+                          return (
+                            <td key={c} className={`text-center font-bold ${v === "mal" ? "text-rojo" : v === "ok" ? "text-verde" : "text-slate-300"}`}>
+                              {CELDA[v]}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -40,3 +40,16 @@ export function plural(n: number, uno: string, varios: string) {
 }
 
 export const UNIDAD_MEDIDOR = { km: "km", horas: "h", ninguno: "" } as const;
+
+/** "3,2 L/h · 0,31 h por litro" o "11,4 L/100 km · 8,8 km/L". */
+export function fmtRendimiento(
+  medidor: "km" | "horas" | "ninguno",
+  r: { porUnidad: number | null; unidadesPorLitro: number | null } | null,
+): { principal: string; secundario: string } | null {
+  if (!r || r.porUnidad == null || r.unidadesPorLitro == null) return null;
+  const n = (x: number) => x.toLocaleString("es-AR", { maximumFractionDigits: 2 });
+  if (medidor === "km") return { principal: `${n(r.porUnidad * 100)} L/100 km`, secundario: `${n(r.unidadesPorLitro)} km por litro` };
+  return { principal: `${n(r.porUnidad)} L/h`, secundario: `${n(r.unidadesPorLitro)} h por litro` };
+}
+
+export const ETIQUETA_COMBUSTIBLE = { diesel: "Diésel", nafta: "Nafta", gnc: "GNC", electrico: "Eléctrico" } as const;

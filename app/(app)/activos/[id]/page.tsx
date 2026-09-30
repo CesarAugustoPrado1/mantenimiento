@@ -5,8 +5,9 @@ import { requerirSesion } from "@/lib/auth";
 import { fila, filas } from "@/lib/db/filas";
 import { agenda } from "@/lib/consultas";
 import { CONFIGURAN, OPERAN } from "@/lib/permisos";
-import { fmtFecha, fmtNum, fmtPesos, hoyAR, UNIDAD_MEDIDOR } from "@/lib/formato";
-import type { Caracteristica, ClaseActivo, EstadoActivo, Medidor } from "@/lib/db/schema";
+import { ETIQUETA_COMBUSTIBLE, fmtFecha, fmtNum, fmtPesos, fmtRendimiento, hoyAR, UNIDAD_MEDIDOR } from "@/lib/formato";
+import type { Caracteristica, ClaseActivo, Combustible, EstadoActivo, Medidor } from "@/lib/db/schema";
+import { resumenCombustible } from "@/lib/consultas-combustible";
 import { CargarLectura } from "@/components/cargar-lectura";
 import { Chip, ChipEstadoActivo, ChipPrioridad, ChipVencimiento, Titulo, Volver } from "@/components/ui";
 
@@ -28,6 +29,7 @@ type Activo = {
   responsable_id: number | null;
   responsable: string | null;
   medidor: Medidor;
+  combustible: Combustible | null;
   estado: EstadoActivo;
   caracteristicas: Caracteristica[];
   nota: string | null;
@@ -41,14 +43,14 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
   const a = await fila<Activo>(sql`
     select a.id, a.clase, a.tipo, a.nombre, a.codigo, a.marca, a.modelo, a.anio, a.numero_serie,
            a.patente, a.ubicacion, a.propiedad, a.responsable_id, u.nombre as responsable,
-           a.medidor, a.estado, a.caracteristicas, a.nota
+           a.medidor, a.combustible, a.estado, a.caracteristicas, a.nota
       from activos a left join usuarios u on u.id = a.responsable_id
      where a.id = ${id}
   `);
   if (!a) notFound();
   if (sesion.rol === "conductor" && a.responsable_id !== sesion.uid) redirect("/sin-permiso");
 
-  const [planes, trabajos, lecturasMes, consumos] = await Promise.all([
+  const [planes, trabajos, lecturasMes, consumos, [comb]] = await Promise.all([
     agenda({ activoId: id }),
     filas<{
       id: number;
@@ -85,6 +87,7 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
        where m.activo_id = ${id} and m.tipo = 'consumo' and m.fecha >= current_date - 365
        group by i.id order by 3 desc limit 10
     `),
+    a.combustible ? resumenCombustible(id) : Promise.resolve([]),
   ]);
 
   const u = UNIDAD_MEDIDOR[a.medidor];
@@ -248,6 +251,60 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              )}
+            </section>
+          )}
+
+          {comb && (
+            <section className="tarjeta p-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-bold tracking-wide text-slate-500 uppercase">
+                  Combustible · {ETIQUETA_COMBUSTIBLE[comb.combustible]}
+                </h2>
+                {sesion.rol !== "auditor" && (
+                  <Link href={`/combustible?activo=${a.id}`} className="text-sm font-semibold underline">
+                    ⛽ Cargar
+                  </Link>
+                )}
+              </div>
+              {fmtRendimiento(a.medidor, comb.periodo) ? (
+                <>
+                  <p className="cifra mt-1 text-2xl">{fmtRendimiento(a.medidor, comb.periodo)!.principal}</p>
+                  <p className="text-xs text-slate-500">
+                    {fmtRendimiento(a.medidor, comb.periodo)!.secundario} · últimos 90 días
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-slate-500">Faltan cargas con lectura para calcular el consumo.</p>
+              )}
+              {comb.alto && (
+                <p className="mt-1">
+                  <Chip tono="rojo">consumo alto este mes: revisar pérdidas o uso</Chip>
+                </p>
+              )}
+              {comb.meses.length > 0 && (
+                <table className="tabla mt-3">
+                  <thead>
+                    <tr>
+                      <th>Mes</th>
+                      <th className="text-right">Litros</th>
+                      <th className="text-right">{a.medidor === "km" ? "Km" : "Horas"}</th>
+                      <th className="text-right">{a.medidor === "km" ? "L/100km" : "L/h"}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comb.meses.slice(0, 12).map((m) => (
+                      <tr key={m.mes}>
+                        <td>{m.mes.split("-").reverse().join("/")}</td>
+                        <td className="text-right tabular-nums">{fmtNum(m.litros)}</td>
+                        <td className="text-right tabular-nums">{fmtNum(m.uso)}</td>
+                        <td className="text-right tabular-nums">
+                          {m.porUnidad == null ? "—" : fmtNum(Math.round(m.porUnidad * (a.medidor === "km" ? 100 : 1) * 100) / 100)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               )}
