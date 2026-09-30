@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  /* Semáforo. Color + palabra siempre juntos (ver components/ui.tsx). */
+  --color-rojo: oklch(0.55 0.2 25);
+  --color-rojo-suave: oklch(0.95 0.04 25);
+  --color-amarillo: oklch(0.8 0.16 85);
+  --color-amarillo-texto: oklch(0.48 0.11 70);
+  --color-amarillo-suave: oklch(0.96 0.06 90);
+  --color-verde: oklch(0.55 0.14 155);
+  --color-verde-suave: oklch(0.95 0.04 155);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased;
+    touch-action: manipulation;
+  }
+
+  /* iOS hace zoom al enfocar inputs de menos de 16px. */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1rem);
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  .tarjeta {
+    @apply rounded-2xl bg-white shadow-sm ring-1 ring-slate-200;
+  }
+
+  /* Objetivo táctil de 48px: se usa con guantes y las manos sucias. */
+  .boton,
+  .boton-primario,
+  .boton-secundario,
+  .boton-peligro {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-base
+           font-semibold transition active:scale-[0.98] disabled:pointer-events-none
+           disabled:opacity-45;
+  }
+  .boton-primario {
+    @apply bg-slate-900 text-white hover:bg-slate-800;
+  }
+  .boton-secundario {
+    @apply bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50;
+  }
+  .boton-peligro {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .campo {
+    @apply w-full rounded-xl border-0 bg-white px-4 py-3 text-slate-900 shadow-sm
+           ring-1 ring-slate-300 outline-none placeholder:text-slate-400
+           focus:ring-2 focus:ring-slate-900;
+  }
+
+  .etiqueta {
+    @apply mb-1.5 block text-sm font-medium text-slate-600;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap;
+  }
+
+  .codigo {
+    @apply font-mono font-bold tabular-nums;
+  }
+
+  .cifra {
+    @apply font-bold tabular-nums;
+  }
+
+  .tabla {
+    @apply w-full text-left text-sm;
+  }
+  .tabla th {
+    @apply px-3 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase;
+  }
+  .tabla td {
+    @apply border-t border-slate-100 px-3 py-2.5 align-top;
+  }
+}
