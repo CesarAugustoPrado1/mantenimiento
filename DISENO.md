@@ -132,10 +132,16 @@ editor de planes:
 | --- | --- |
 | **Clark** (nivel aceite motor, hidráulico, refrigerante, filtro de aire, engrase + fecha + hs) | Plan del clark, una casilla por fila; las horas son la lectura del horómetro |
 | **Carrusel de mesas** (Mesa 1…108 × Vidrios, Ruedas, Arrastres, Guías, Tramo de cadena) | Columnas + 108 filas generadas solas ("Mesa 1 … N") |
-| **Revisión diaria sector Piedra** (Trompo 2, Mesa vibrado, Sistema de agua, Túnel × Limpieza, Rotura, Desgaste, Falla, Cambiar) | Una sección por equipo, cada 1 día |
+| **Revisión diaria sector Piedra** (Trompo 2, Mesa vibrado, Sistema de agua, Túnel × Limpieza, Rotura, Desgaste, Falla, Cambiar) | Una sección por equipo, cada 1 día. Trompo 2, Mesa vibrado, Sistema de agua y Túnel son **equipos propios** con su historial: el plan cuelga del "Sector Piedra" y cada sección apunta a su equipo |
 
 Una sección puede ser **otro equipo** (el Túnel dentro de la revisión del sector):
 así un ✗ ahí abre el correctivo sobre el Túnel y no sobre "el sector".
+
+Un equipo puede tener **todos los planes que haga falta, cada uno con su
+periodicidad y su responsable**: el carrusel tiene el control de mesas (semanal)
+y la lubricación de cadena (mensual), y cada uno vence por su lado en la agenda.
+El "Responsable" de la planilla de papel es el responsable del plan, y quien
+la completó queda como "Lo hizo".
 
 La planilla arranca vacía a propósito: marcar "todo bien" tiene que ser un acto
 explícito. Por eso cada sección tiene un botón **✓ Todo bien**, y después se tocan

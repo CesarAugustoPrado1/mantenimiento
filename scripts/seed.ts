@@ -78,6 +78,7 @@ async function ejemplos(db: Db, pin: string) {
     .values([
       { usuario: "jefe", nombre: "Jefe de taller", rol: "jefe_taller" as const, pinHash: hash },
       { usuario: "tecnico1", nombre: "Técnico 1", rol: "tecnico" as const, pinHash: hash },
+      { usuario: "eric", nombre: "Eric", rol: "tecnico" as const, pinHash: hash },
       { usuario: "chofer1", nombre: "Chofer 1", rol: "conductor" as const, pinHash: hash },
       { usuario: "auditoria", nombre: "Auditoría", rol: "auditor" as const, pinHash: hash },
     ])
@@ -136,13 +137,15 @@ async function ejemplos(db: Db, pin: string) {
       },
       { clase: "vehiculo" as const, tipo: "Autoelevador", nombre: "Clark 2", codigo: "AE-02", marca: "Clark", anio: 2015, medidor: "horas" as const, ubicacion: "Playa", combustible: "diesel" as const },
       { clase: "vehiculo" as const, tipo: "Autoelevador", nombre: "Clark 1", codigo: "AE-01", marca: "Clark", anio: 2012, medidor: "horas" as const, ubicacion: "Playa", combustible: "nafta" as const },
-      { clase: "maquina" as const, tipo: "Carrusel", nombre: "Carrusel de mesas", codigo: "EPACK", ubicacion: "Epack" },
+      { clase: "maquina" as const, tipo: "Carrusel", nombre: "Carrusel de mesas", codigo: "CAR-01" },
       { clase: "maquina" as const, tipo: "Línea / sector", nombre: "Sector Piedra", codigo: "PIEDRA", ubicacion: "Piedra" },
       { clase: "maquina" as const, tipo: "Trompo", nombre: "Trompo 2", codigo: "TR-02", ubicacion: "Piedra" },
       { clase: "maquina" as const, tipo: "Túnel", nombre: "Túnel", codigo: "TUN-01", ubicacion: "Piedra" },
+      { clase: "maquina" as const, tipo: "Mesa vibradora", nombre: "Mesa vibrado", codigo: "MV-01", ubicacion: "Piedra" },
+      { clase: "maquina" as const, tipo: "Instalación", nombre: "Sistema de agua", codigo: "AGUA-01", ubicacion: "Piedra" },
     ])
     .returning();
-  const [, , , clark2, clark1, carrusel, piedra, trompo, tunel] = eq_;
+  const [, , , clark2, clark1, carrusel, piedra, trompo, tunel, vibrado, agua] = eq_;
 
   await db.insert(lecturas).values([
     { activoId: eq_[1].id, fecha: dia(90), valor: "11200", usuarioId: adm.id },
@@ -172,18 +175,20 @@ async function ejemplos(db: Db, pin: string) {
       { activoId: eq_[3].id, nombre: "Service 250 horas", cadaUso: 250, avisoUso: 25, responsableId: id("tecnico1"), desdeFecha: dia(90), desdeUso: "7900" },
     ])
     .returning();
-  const [pClark, pCarrusel, pPiedra] = await db
+  const [pClark, pCarrusel, pPiedra, pCadena] = await db
     .insert(planes)
     .values([
       { activoId: clark1.id, nombre: "Control de clark", cadaDias: 7, responsableId: id("tecnico1"), desdeFecha: dia(8) },
       {
-        activoId: carrusel.id, nombre: "Control carrusel de mesas", cadaDias: 7, responsableId: id("tecnico1"), desdeFecha: dia(3),
+        activoId: carrusel.id, nombre: "Control carrusel de mesas", cadaDias: 7, responsableId: id("eric"), desdeFecha: dia(3),
         columnas: ["Vidrios", "Ruedas", "Arrastres", "Guías", "Tramo de cadena"],
       },
       {
         activoId: piedra.id, nombre: "Revisión diaria sector Piedra", cadaDias: 1, avisoDias: 0, responsableId: id("tecnico1"), desdeFecha: dia(1),
         columnas: ["Limpieza", "Rotura", "Desgaste", "Falla", "Cambiar"],
       },
+      // La misma máquina con otro control y otra periodicidad.
+      { activoId: carrusel.id, nombre: "Lubricación y tensión de cadena", cadaDias: 30, responsableId: id("eric"), desdeFecha: dia(25) },
     ])
     .returning();
   const sec = (planId: number, orden0: number, seccion: string | null, activoId: number | null, ...d: string[]) =>
@@ -194,9 +199,12 @@ async function ejemplos(db: Db, pin: string) {
     { planId: pClark.id, orden: 4, accion: "lubricar" as const, descripcion: "Engrase" },
     ...sec(pCarrusel.id, 0, null, null, ...filasNumeradas("Mesa", 1, 108)),
     ...sec(pPiedra.id, 0, "Trompo 2", trompo.id, "Motor", "Reductor", "Tablero", "Tambor", "Plataforma"),
-    ...sec(pPiedra.id, 10, "Mesa vibrado", null, "Resortes", "Teclas", "Cables", "Tapa de mesa", "Batea", "Cucharas", "Mezclador"),
-    ...sec(pPiedra.id, 20, "Sistema de agua", null, "Manguera", "Pico de agua"),
+    ...sec(pPiedra.id, 10, "Mesa vibrado", vibrado.id, "Resortes", "Teclas", "Cables", "Tapa de mesa", "Batea", "Cucharas", "Mezclador"),
+    ...sec(pPiedra.id, 20, "Sistema de agua", agua.id, "Manguera", "Pico de agua"),
     ...sec(pPiedra.id, 30, "Túnel", tunel.id, "Motores", "Cinta transportadora", "Resistencias", "Sensores", "Cuchilla", "Cinta de cuchilla", "Rodamientos"),
+    { planId: pCadena.id, orden: 0, accion: "lubricar" as const, descripcion: "Cadena de arrastre" },
+    { planId: pCadena.id, orden: 1, accion: "ajustar" as const, descripcion: "Tensión de cadena" },
+    { planId: pCadena.id, orden: 2, accion: "chequear" as const, descripcion: "Eslabones y pernos" },
   ]);
   await db.insert(planTareas).values([
     { planId: pls[0].id, orden: 0, accion: "lubricar", descripcion: "Rodamientos del eje principal" },
@@ -238,7 +246,7 @@ async function ejemplos(db: Db, pin: string) {
     .values([{ fecha: dia(90), arsPorUsd: "1250", nota: "Ejemplo" }])
     .onConflictDoNothing();
 
-  console.log(`✓ Ejemplos: usuarios jefe, tecnico1, chofer1, auditoria (PIN ${pin}), 9 equipos (con carrusel, sector Piedra y clarks), 9 insumos.`);
+  console.log(`✓ Ejemplos: usuarios jefe, tecnico1, eric, chofer1, auditoria (PIN ${pin}), 11 equipos (carrusel, sector Piedra con sus máquinas, clarks), 9 insumos.`);
 }
 
 main().catch((e) => {
