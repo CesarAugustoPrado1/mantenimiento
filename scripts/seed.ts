@@ -17,6 +17,7 @@ import { CATEGORIAS, CAUSAS } from "./datos-base";
 import { filasNumeradas } from "../lib/planilla";
 
 const {
+  activoRepuestos,
   activos,
   categoriasHerramienta,
   cargasCombustible,
@@ -227,6 +228,33 @@ async function ejemplos(db: Db, pin: string) {
 
   const catsH = await db.select().from(categoriasHerramienta);
   const catH = (n: string) => catsH.find((c) => c.nombre === n)?.id ?? null;
+  // Repuestos críticos: el eje que hay que mandar a tornear y los rulemanes.
+  await db.insert(categoriasInsumo).values({ nombre: "Repuestos" }).onConflictDoNothing();
+  const [catRep] = await db.select().from(categoriasInsumo).where(eq(categoriasInsumo.nombre, "Repuestos"));
+  const reps = await db
+    .insert(insumos)
+    .values([
+      { nombre: "Eje de la corona del carrusel", categoriaId: catRep.id, esRepuesto: true, tiempoReposicionDias: 7, proveedor: "Tornería", critico: "0", atento: "0", ideal: "1" },
+      { nombre: "Rulemán 6204-2RS", codigo: "6204-2RS", categoriaId: catRep.id, esRepuesto: true, tiempoReposicionDias: 2, critico: "0", atento: "9", ideal: "10" },
+      { nombre: "Rulemán 6308 (trompo)", codigo: "6308", categoriaId: catRep.id, esRepuesto: true, tiempoReposicionDias: 5, critico: "0", atento: "1", ideal: "2" },
+    ])
+    .returning();
+  const stockRep = [0, 6, 2];
+  for (let i = 0; i < reps.length; i++) {
+    if (!stockRep[i]) continue;
+    await db.insert(movimientosInsumo).values({
+      insumoId: reps[i].id, tipo: "ajuste", cantidad: String(stockRep[i]), stockAntes: "0", stockDespues: String(stockRep[i]),
+      fecha: dia(30), usuarioId: adm.id, nota: "Stock inicial",
+    });
+    await db.update(insumos).set({ stock: String(stockRep[i]) }).where(eq(insumos.id, reps[i].id));
+  }
+  await db.insert(activoRepuestos).values([
+    { activoId: carrusel.id, insumoId: reps[0].id, dondeVa: "Eje de la corona", criticidad: "alta" as const, nota: "Si se dobla hay que mandar a tornear uno nuevo" },
+    { activoId: carrusel.id, insumoId: reps[1].id, dondeVa: "Ruedas de las mesas", criticidad: "media" as const },
+    { activoId: trompo.id, insumoId: reps[1].id, dondeVa: "Rodillos de apoyo", criticidad: "media" as const },
+    { activoId: trompo.id, insumoId: reps[2].id, dondeVa: "Eje del tambor", criticidad: "alta" as const },
+  ]);
+
   const tipos = await db
     .insert(herramientaTipos)
     .values([

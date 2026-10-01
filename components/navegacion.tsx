@@ -11,6 +11,7 @@ const ICONOS: Record<string, string> = {
   km: "🔢",
   combustible: "⛽",
   insumos: "📦",
+  repuestos: "🔩",
   maquina: "🏭",
   vehiculo: "🚚",
   trabajos: "🔧",

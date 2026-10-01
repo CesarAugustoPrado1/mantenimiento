@@ -44,10 +44,22 @@ export const ETIQUETA_NIVEL: Record<Nivel, string> = {
   verde: "OK",
 };
 
-/** Umbrales coherentes: crítico < atento <= ideal. Devuelve el error o null. */
+/**
+ * Umbrales coherentes: crítico <= atento <= ideal. Iguales vale: sin franja
+ * amarilla (un eje del que se tiene 1: 0 es rojo, 1 es verde).
+ */
 export function validarUmbrales(critico: number, atento: number, ideal: number): string | null {
   if (critico < 0 || atento < 0 || ideal < 0) return "Los umbrales no pueden ser negativos.";
-  if (!(critico < atento)) return "El nivel crítico tiene que ser menor que el de atento.";
+  if (critico > atento) return "El nivel crítico no puede ser mayor que el de atento.";
   if (!(atento <= ideal)) return "El stock ideal tiene que ser mayor o igual que el de atento.";
   return null;
+}
+
+/**
+ * Semáforo de un repuesto a partir de "cuántos conviene tener":
+ * 0 en stock es rojo, menos del mínimo amarillo, el mínimo o más verde.
+ */
+export function umbralesRepuesto(minimo: number): { critico: number; atento: number; ideal: number } {
+  const m = Math.max(1, Math.round(minimo));
+  return { critico: 0, atento: m - 1, ideal: m };
 }

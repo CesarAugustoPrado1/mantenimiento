@@ -173,3 +173,52 @@ export async function agenda(filtro: { activoId?: number; responsableId?: number
       return (a.venc.fechaAgenda ?? "9999").localeCompare(b.venc.fechaAgenda ?? "9999");
     });
 }
+
+/* -------------------------------------------------------------------------- */
+/* Repuestos críticos                                                         */
+/* -------------------------------------------------------------------------- */
+
+export type FilaRepuesto = {
+  vinculo_id: number;
+  activo_id: number;
+  activo: string;
+  activo_codigo: string | null;
+  activo_patente: string | null;
+  insumo_id: number;
+  nombre: string;
+  codigo: string | null;
+  unidad: string;
+  stock: number;
+  critico: number;
+  atento: number;
+  ideal: number;
+  tiempo_reposicion_dias: number | null;
+  proveedor: string | null;
+  ubicacion: string | null;
+  donde_va: string | null;
+  criticidad: "alta" | "media" | "baja";
+  nota: string | null;
+};
+
+export function repuestos(filtro: { activoId?: number } = {}) {
+  return filas<FilaRepuesto>(sql`
+    select ar.id as vinculo_id, a.id as activo_id, a.nombre as activo, a.codigo as activo_codigo,
+           a.patente as activo_patente, i.id as insumo_id, i.nombre, i.codigo, i.unidad,
+           i.stock::float8 as stock, i.critico::float8 as critico, i.atento::float8 as atento,
+           i.ideal::float8 as ideal, i.tiempo_reposicion_dias, i.proveedor, i.ubicacion,
+           ar.donde_va, ar.criticidad, ar.nota
+      from activo_repuestos ar
+      join activos a on a.id = ar.activo_id
+      join insumos i on i.id = ar.insumo_id
+     where a.estado <> 'baja' and i.activo
+       ${filtro.activoId ? sql`and a.id = ${filtro.activoId}` : sql``}
+     order by array_position(array['alta','media','baja']::text[], ar.criticidad::text), i.nombre
+  `);
+}
+
+export function repuestosDisponibles() {
+  return filas<{ id: number; nombre: string; codigo: string | null; unidad: string; stock: number }>(sql`
+    select id, nombre, codigo, unidad, stock::float8 as stock from insumos
+     where activo order by es_repuesto desc, nombre
+  `);
+}

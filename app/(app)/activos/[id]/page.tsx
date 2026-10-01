@@ -3,13 +3,17 @@ import { notFound, redirect } from "next/navigation";
 import { sql } from "drizzle-orm";
 import { requerirSesion } from "@/lib/auth";
 import { fila, filas } from "@/lib/db/filas";
-import { agenda } from "@/lib/consultas";
+import { agenda, repuestos as leerRepuestos, repuestosDisponibles } from "@/lib/consultas";
+import { nivelDeStock } from "@/lib/semaforo";
+import { AgregarRepuesto } from "@/components/repuestos";
+import { BotonAccion } from "@/components/admin";
+import { quitarRepuesto } from "@/lib/acciones/repuestos";
 import { CONFIGURAN, OPERAN } from "@/lib/permisos";
 import { ETIQUETA_COMBUSTIBLE, fmtFecha, fmtNum, fmtPesos, fmtRendimiento, hoyAR, UNIDAD_MEDIDOR } from "@/lib/formato";
 import type { Caracteristica, ClaseActivo, Combustible, EstadoActivo, Medidor } from "@/lib/db/schema";
 import { resumenCombustible } from "@/lib/consultas-combustible";
 import { CargarLectura } from "@/components/cargar-lectura";
-import { Chip, ChipEstadoActivo, ChipPrioridad, ChipVencimiento, Titulo, Volver } from "@/components/ui";
+import { Chip, ChipCriticidad, ChipEstadoActivo, ChipPrioridad, ChipVencimiento, Semaforo, Titulo, Volver } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +54,7 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
   if (!a) notFound();
   if (sesion.rol === "conductor" && a.responsable_id !== sesion.uid) redirect("/sin-permiso");
 
-  const [planes, trabajos, lecturasMes, consumos, [comb]] = await Promise.all([
+  const [planes, trabajos, lecturasMes, consumos, [comb], reps] = await Promise.all([
     agenda({ activoId: id }),
     filas<{
       id: number;
@@ -88,7 +92,9 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
        group by i.id order by 3 desc limit 10
     `),
     a.combustible ? resumenCombustible(id) : Promise.resolve([]),
+    leerRepuestos({ activoId: id }),
   ]);
+  const disponibles = CONFIGURAN.includes(sesion.rol) ? await repuestosDisponibles() : [];
 
   const u = UNIDAD_MEDIDOR[a.medidor];
   const ultima = lecturasMes[0] ?? null;
@@ -177,6 +183,66 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
                     </div>
                   </li>
                 ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-bold tracking-wide text-slate-500 uppercase">Repuestos críticos</h2>
+              {configura && <AgregarRepuesto activoId={a.id} disponibles={disponibles} />}
+            </div>
+            {reps.length === 0 ? (
+              <p className="tarjeta p-4 text-sm text-slate-500">
+                Ningún repuesto cargado. Los que convienen tener son los que, si se rompen y no están, paran la producción mientras se consiguen.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {reps.map((r) => {
+                  const nivel = nivelDeStock(r.stock, r.critico, r.atento);
+                  return (
+                    <li key={r.vinculo_id} className={`tarjeta p-3 ${nivel === "rojo" && r.criticidad === "alta" ? "ring-2 ring-rojo" : ""}`}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <Link href={`/insumos/${r.insumo_id}`} className="font-semibold hover:underline">
+                            {r.nombre}
+                          </Link>
+                          {r.codigo && <span className="codigo ml-1.5 text-xs text-slate-500">{r.codigo}</span>}
+                          <p className="text-xs text-slate-500">
+                            {[r.donde_va, r.proveedor && `proveedor: ${r.proveedor}`, r.nota].filter(Boolean).join(" · ")}
+                          </p>
+                          {nivel === "rojo" && r.tiempo_reposicion_dias ? (
+                            <p className="mt-1 text-xs font-semibold text-rojo">
+                              Sin stock: si se rompe, ~{r.tiempo_reposicion_dias} días hasta conseguirlo.
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-col items-end gap-1 text-right">
+                          <span className="text-sm">
+                            hay <span className="cifra">{fmtNum(r.stock)}</span> de {fmtNum(r.ideal)}
+                          </span>
+                          <Semaforo nivel={nivel} />
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <ChipCriticidad criticidad={r.criticidad} />
+                        {r.tiempo_reposicion_dias != null && <Chip>reposición {r.tiempo_reposicion_dias} días</Chip>}
+                        {configura && (
+                          <span className="ml-auto flex items-center gap-3">
+                            <AgregarRepuesto
+                              activoId={a.id}
+                              disponibles={disponibles}
+                              inicial={{ insumoId: r.insumo_id, nombre: r.nombre, dondeVa: r.donde_va ?? "", criticidad: r.criticidad, nota: r.nota ?? "" }}
+                            />
+                            <BotonAccion accion={quitarRepuesto.bind(null, r.vinculo_id)} clase="text-xs text-slate-400 underline" confirmar="¿Sacarlo de esta máquina? Sigue en el pañol.">
+                              quitar
+                            </BotonAccion>
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>

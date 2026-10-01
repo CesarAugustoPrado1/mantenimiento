@@ -30,6 +30,9 @@ export default async function Tablero() {
         (select count(*) from trabajos where tipo = 'correctivo' and estado <> 'cerrado')::int as correctivos,
         (select count(*) from activos where estado in ('con_falla', 'fuera_de_servicio'))::int as equipos_mal,
         (select count(*) from obras where estado in ('pendiente', 'en_curso'))::int as obras,
+        (select count(distinct i.id) from insumos i join activo_repuestos ar on ar.insumo_id = i.id
+          join activos a on a.id = ar.activo_id
+          where i.activo and a.estado <> 'baja' and ar.criticidad = 'alta' and i.stock <= i.critico)::int as repuestos_criticos,
         (select count(*) from activos a where a.medidor <> 'ninguno' and a.estado <> 'baja'
            and not exists (select 1 from lecturas l where l.activo_id = a.id and l.fecha >= ${inicioMes}))::int as sin_lectura
     `),
@@ -112,6 +115,13 @@ export default async function Tablero() {
           etiqueta="Herramientas faltantes"
           tono={herramientas?.faltantes ? "amarillo" : "verde"}
           detalle={`en ${herramientas?.tipos ?? 0} tipos`}
+        />
+        <Indicador
+          href="/repuestos"
+          valor={n?.repuestos_criticos ?? 0}
+          etiqueta="Repuestos críticos sin stock"
+          tono={n?.repuestos_criticos ? "rojo" : "verde"}
+          detalle="si se rompen, la máquina para"
         />
         <Indicador
           href="/obras"

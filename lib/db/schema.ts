@@ -112,6 +112,17 @@ export const insumos = pgTable(
     ideal: numeric("ideal", { precision: 12, scale: 2 }).notNull().default("0"),
     /** Lo que no puede faltar nunca en el taller: discos de corte, electrodos. */
     infaltable: boolean("infaltable").notNull().default(false),
+    /**
+     * Repuesto de máquina (rulemán, eje, correa) y no consumible de taller.
+     * Se vincula a las máquinas en `activo_repuestos`.
+     */
+    esRepuesto: boolean("es_repuesto").notNull().default(false),
+    /**
+     * Días que tarda en conseguirse o fabricarse si no hay. Es lo que convierte
+     * un repuesto en crítico: un eje que hay que mandar a tornear son días de
+     * producción parada.
+     */
+    tiempoReposicionDias: integer("tiempo_reposicion_dias"),
     ubicacion: text("ubicacion"),
     proveedor: text("proveedor"),
     nota: text("nota"),
@@ -280,6 +291,33 @@ export const lecturas = pgTable(
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("lecturas_activo_fecha_uq").on(t.activoId, t.fecha)],
+);
+
+/* -------------------------------------------------------------------------- */
+/* Repuestos críticos                                                         */
+/* -------------------------------------------------------------------------- */
+
+export const criticidadEnum = pgEnum("criticidad", ["alta", "media", "baja"]);
+export type Criticidad = (typeof criticidadEnum.enumValues)[number];
+
+/**
+ * Qué repuestos conviene tener para cada máquina. El mismo repuesto puede
+ * servir a varias (el rulemán del carrusel y del trompo), y en cada una con su
+ * criticidad: `alta` = si se rompe y no está, para la producción.
+ */
+export const activoRepuestos = pgTable(
+  "activo_repuestos",
+  {
+    id: serial("id").primaryKey(),
+    activoId: integer("activo_id").notNull().references(() => activos.id),
+    insumoId: integer("insumo_id").notNull().references(() => insumos.id),
+    /** Dónde va: "eje de la corona", "ruedas de las mesas". */
+    dondeVa: text("donde_va"),
+    criticidad: criticidadEnum("criticidad").notNull().default("alta"),
+    nota: text("nota"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("activo_repuestos_uq").on(t.activoId, t.insumoId)],
 );
 
 /* -------------------------------------------------------------------------- */

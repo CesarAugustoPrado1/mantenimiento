@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { compraSugerida, coberturaDias, nivelDeStock, validarUmbrales } from "../lib/semaforo";
+import { compraSugerida, coberturaDias, nivelDeStock, umbralesRepuesto, validarUmbrales } from "../lib/semaforo";
 import { calcularVencimiento, ritmoDeUso, type EntradaVencimiento } from "../lib/vencimientos";
 
 test("semáforo: el ejemplo del caño 40x40", () => {
@@ -24,6 +24,7 @@ test("cobertura: sin consumo no se inventa un número", () => {
 
 test("umbrales incoherentes se rechazan", () => {
   assert.ok(validarUmbrales(10, 5, 20));
+  assert.equal(validarUmbrales(0, 0, 1), null); // sin franja amarilla: válido
   assert.ok(validarUmbrales(5, 10, 8));
   assert.equal(validarUmbrales(5, 10, 20), null);
 });
@@ -189,4 +190,15 @@ test("cotización: historial y respaldo del día", () => {
   assert.deepEqual(leerHoy({ venta: 1460 }, "2026-09-30"), { fecha: "2026-09-30", arsPorUsd: 1460 });
   assert.equal(leerHoy({}, "2026-09-30"), null);
   assert.deepEqual(leerHistorial({ error: "x" }, "2024-01-01"), []);
+});
+
+test("repuestos: semáforo desde el mínimo a tener", () => {
+  const eje = umbralesRepuesto(1);
+  assert.deepEqual(eje, { critico: 0, atento: 0, ideal: 1 });
+  assert.equal(nivelDeStock(0, eje.critico, eje.atento), "rojo");
+  assert.equal(nivelDeStock(1, eje.critico, eje.atento), "verde");
+  const rulemanes = umbralesRepuesto(10);
+  assert.equal(nivelDeStock(6, rulemanes.critico, rulemanes.atento), "amarillo");
+  assert.equal(nivelDeStock(10, rulemanes.critico, rulemanes.atento), "verde");
+  assert.equal(compraSugerida(6, rulemanes.critico, rulemanes.atento, rulemanes.ideal), 4);
 });

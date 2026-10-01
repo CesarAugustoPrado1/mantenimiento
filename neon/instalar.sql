@@ -364,6 +364,25 @@ insert into drizzle.__drizzle_migrations (hash, created_at) values ('0b592abb00f
 ALTER TABLE "herramienta_tipos" DROP COLUMN "categoria";
 insert into drizzle.__drizzle_migrations (hash, created_at) values ('723936ac694f5e32a5cd16964afd9e963b25228e1703e80fa81906185c83eddf', 1790820465323);
 
+-- 0003_repuestos
+CREATE TYPE "public"."criticidad" AS ENUM('alta', 'media', 'baja');
+CREATE TABLE "activo_repuestos" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"activo_id" integer NOT NULL,
+	"insumo_id" integer NOT NULL,
+	"donde_va" text,
+	"criticidad" "criticidad" DEFAULT 'alta' NOT NULL,
+	"nota" text,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE "insumos" ADD COLUMN "es_repuesto" boolean DEFAULT false NOT NULL;
+ALTER TABLE "insumos" ADD COLUMN "tiempo_reposicion_dias" integer;
+ALTER TABLE "activo_repuestos" ADD CONSTRAINT "activo_repuestos_activo_id_activos_id_fk" FOREIGN KEY ("activo_id") REFERENCES "public"."activos"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "activo_repuestos" ADD CONSTRAINT "activo_repuestos_insumo_id_insumos_id_fk" FOREIGN KEY ("insumo_id") REFERENCES "public"."insumos"("id") ON DELETE no action ON UPDATE no action;
+CREATE UNIQUE INDEX "activo_repuestos_uq" ON "activo_repuestos" USING btree ("activo_id","insumo_id");
+insert into drizzle.__drizzle_migrations (hash, created_at) values ('88123fe210679223a9f53c063a37e8c6ff9a311110c12ecd2ffa4d93ae7e036f', 1790821080756);
+
 -- Datos de arranque
 insert into causas (nombre, descripcion) values
   ('Desgaste normal', 'Llegó al fin de su vida útil.'),
@@ -391,13 +410,13 @@ insert into categorias_insumo (nombre) values
 on conflict do nothing;
 
 insert into usuarios (usuario, nombre, rol, pin_hash)
-values ('admin', 'Administrador', 'admin', '$2a$10$4b/LASl1L9lANkDJXAULlOYPdasLqwbXZzTDQQ92J0dy5fGMiml0G')
+values ('admin', 'Administrador', 'admin', '$2a$10$C7QwZH038zXHzAbxcetfheW2vCBWLyhu/GSQOuFIYEHCrYUrd6.sG')
 on conflict (usuario) do nothing;
 
 commit;
 
 -- Verificación: Neon muestra el resultado de esta última consulta.
--- Tiene que decir 22 tablas, 3 migraciones, 8 causas, 11 categorías y admin (admin).
+-- Tiene que decir 23 tablas, 4 migraciones, 8 causas, 11 categorías y admin (admin).
 select
   (select count(*) from information_schema.tables where table_schema = 'public') as tablas,
   (select count(*) from drizzle.__drizzle_migrations) as migraciones,

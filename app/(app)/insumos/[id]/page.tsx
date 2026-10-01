@@ -6,7 +6,8 @@ import { activosVigentes, categorias, nombreActivo } from "@/lib/consultas";
 import { CONFIGURAN, OPERAN } from "@/lib/permisos";
 import { fmtFecha, fmtNum, fmtPesos, hoyAR } from "@/lib/formato";
 import { coberturaDias, compraSugerida, nivelDeStock } from "@/lib/semaforo";
-import { Chip, Semaforo, Titulo, Volver } from "@/components/ui";
+import { Chip, ChipCriticidad, Semaforo, Titulo, Volver } from "@/components/ui";
+import Link from "next/link";
 import { EditarInsumo, PanelMovimiento } from "./panel";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,8 @@ type Insumo = {
   proveedor: string | null;
   nota: string | null;
   activo: boolean;
+  es_repuesto: boolean;
+  tiempo_reposicion_dias: number | null;
   consumo_90: number;
   ultimo_precio: number | null;
   ultimo_precio_fecha: string | null;
@@ -37,11 +40,12 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
 
-  const [i, movimientos, activos, obras, cats, porEquipo] = await Promise.all([
+  const [i, movimientos, activos, obras, cats, porEquipo, usos] = await Promise.all([
     fila<Insumo>(sql`
       select i.id, i.codigo, i.nombre, i.categoria_id, c.nombre as categoria, i.unidad,
              i.stock::float8 as stock, i.critico::float8 as critico, i.atento::float8 as atento,
              i.ideal::float8 as ideal, i.infaltable, i.ubicacion, i.proveedor, i.nota, i.activo,
+             i.es_repuesto, i.tiempo_reposicion_dias,
              coalesce((select -sum(m.cantidad) from movimientos_insumo m
                         where m.insumo_id = i.id and m.tipo = 'consumo'
                           and m.fecha >= current_date - 90), 0)::float8 as consumo_90,
@@ -96,6 +100,11 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
        where m.insumo_id = ${id} and m.tipo = 'consumo' and m.fecha >= current_date - 365
        group by 1, 2 order by 3 desc limit 8
     `),
+    filas<{ activo_id: number; activo: string; codigo: string | null; patente: string | null; donde_va: string | null; criticidad: "alta" | "media" | "baja" }>(sql`
+      select a.id as activo_id, a.nombre as activo, a.codigo, a.patente, ar.donde_va, ar.criticidad
+        from activo_repuestos ar join activos a on a.id = ar.activo_id
+       where ar.insumo_id = ${id} and a.estado <> 'baja' order by a.nombre
+    `),
   ]);
   if (!i) notFound();
 
@@ -128,12 +137,15 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
                 proveedor: i.proveedor ?? "",
                 nota: i.nota ?? "",
                 activo: i.activo,
+                esRepuesto: i.es_repuesto,
+                tiempoReposicionDias: i.tiempo_reposicion_dias != null ? String(i.tiempo_reposicion_dias) : "",
               }}
             />
           ) : null
         }
       >
         {i.nombre} {i.infaltable && <Chip tono="oscuro">infaltable</Chip>}
+        {i.es_repuesto && <Chip tono="azul">repuesto</Chip>}
         {!i.activo && <Chip>desactivado</Chip>}
       </Titulo>
 
@@ -250,6 +262,31 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
             ))}
             {porEquipo.length === 0 && <li className="p-3 text-sm text-slate-500">Sin consumos.</li>}
           </ul>
+          {(i.es_repuesto || usos.length > 0) && (
+            <div className="tarjeta mt-4 p-4">
+              <p className="mb-1 text-sm font-bold tracking-wide text-slate-500 uppercase">Repuesto de</p>
+              {i.tiempo_reposicion_dias != null && (
+                <p className="mb-2 text-sm">
+                  Conseguirlo tarda <strong>{i.tiempo_reposicion_dias} días</strong>.
+                </p>
+              )}
+              {usos.length === 0 ? (
+                <p className="text-sm text-slate-500">Todavía no está vinculado a ninguna máquina.</p>
+              ) : (
+                <ul className="space-y-1 text-sm">
+                  {usos.map((u) => (
+                    <li key={u.activo_id} className="flex flex-wrap items-center justify-between gap-2">
+                      <Link href={`/activos/${u.activo_id}`} className="hover:underline">
+                        {nombreActivo({ nombre: u.activo, codigo: u.codigo, patente: u.patente })}
+                        {u.donde_va && <span className="text-slate-500"> · {u.donde_va}</span>}
+                      </Link>
+                      <ChipCriticidad criticidad={u.criticidad} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           {i.proveedor && <p className="mt-3 text-sm text-slate-600">Proveedor habitual: {i.proveedor}</p>}
           {i.nota && <p className="mt-1 text-sm text-slate-600">{i.nota}</p>}
         </section>

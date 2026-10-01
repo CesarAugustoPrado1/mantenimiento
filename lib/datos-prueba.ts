@@ -23,6 +23,7 @@ export const TABLAS_DE_DATOS = [
   "plan_tareas",
   "planes",
   "lecturas",
+  "activo_repuestos",
   "movimientos_insumo",
   "insumos",
   "herramientas",

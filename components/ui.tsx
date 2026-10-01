@@ -190,3 +190,8 @@ export function ChipEstadoActivo({ estado }: { estado: keyof typeof ESTADO_ACTIV
   const e = ESTADO_ACTIVO[estado];
   return <Chip tono={e.tono}>{e.texto}</Chip>;
 }
+
+export function ChipCriticidad({ criticidad }: { criticidad: "alta" | "media" | "baja" }) {
+  const tono = ({ alta: "rojo", media: "amarillo", baja: "gris" } as const)[criticidad];
+  return <Chip tono={tono}>criticidad {criticidad}</Chip>;
+}

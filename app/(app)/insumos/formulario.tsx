@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { guardarInsumo } from "@/lib/acciones/insumos";
 import { Campo, Formulario, Interruptor } from "@/components/admin";
 import { Semaforo } from "@/components/ui";
-import { nivelDeStock, validarUmbrales } from "@/lib/semaforo";
+import { validarUmbrales } from "@/lib/semaforo";
 
 export type DatosInsumo = {
   id?: number;
@@ -21,6 +21,8 @@ export type DatosInsumo = {
   proveedor: string;
   nota: string;
   activo: boolean;
+  esRepuesto: boolean;
+  tiempoReposicionDias: string;
   stockInicial?: string;
 };
 
@@ -37,6 +39,8 @@ export const INSUMO_VACIO: DatosInsumo = {
   proveedor: "",
   nota: "",
   activo: true,
+  esRepuesto: false,
+  tiempoReposicionDias: "",
   stockInicial: "",
 };
 
@@ -127,8 +131,12 @@ export function FormularioInsumo({
         </div>
         {completos && !errorUmbral && (
           <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-            <Semaforo nivel={nivelDeStock(c, c, a)} /> hasta {c} ·
-            <Semaforo nivel={nivelDeStock(c + 0.01, c, a)} /> de {c} a {a} ·
+            <Semaforo nivel="rojo" /> hasta {c} ·
+            {a > c && (
+              <>
+                <Semaforo nivel="amarillo" /> de {c} a {a} ·
+              </>
+            )}
             <Semaforo nivel="verde" /> más de {a}. Al comprar se repone hasta {i}.
           </p>
         )}
@@ -148,6 +156,22 @@ export function FormularioInsumo({
         <textarea className="campo" rows={2} value={d.nota} onChange={(e) => set("nota", e.target.value)} />
       </Campo>
 
+      <Interruptor
+        valor={d.esRepuesto}
+        cambiar={(v) => set("esRepuesto", v)}
+        etiqueta="Es un repuesto de máquina"
+        ayuda="Rulemán, eje, correa… Se vincula a las máquinas desde la ficha de cada una."
+      />
+      {d.esRepuesto && (
+        <Campo etiqueta="Días para conseguirlo o fabricarlo" ayuda="Si se rompe y no hay, son días de máquina parada.">
+          <input
+            className="campo max-w-40"
+            inputMode="numeric"
+            value={d.tiempoReposicionDias}
+            onChange={(e) => set("tiempoReposicionDias", e.target.value)}
+          />
+        </Campo>
+      )}
       <Interruptor
         valor={d.infaltable}
         cambiar={(v) => set("infaltable", v)}

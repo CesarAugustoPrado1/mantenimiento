@@ -85,6 +85,8 @@ const esquemaInsumo = z.object({
   proveedor: texto(120),
   nota: texto(500),
   activo: z.boolean(),
+  esRepuesto: z.boolean().default(false),
+  tiempoReposicionDias: numOpcional,
   /** Solo al crear: el stock con el que arranca (entra como ajuste). */
   stockInicial: numOpcional,
 });
@@ -120,6 +122,8 @@ export async function guardarInsumo(
       proveedor: d.proveedor,
       nota: d.nota,
       activo: d.activo,
+      esRepuesto: d.esRepuesto,
+      tiempoReposicionDias: d.esRepuesto && d.tiempoReposicionDias != null ? Math.max(0, Math.round(d.tiempoReposicionDias)) : null,
     };
 
     const nuevoId = await db.transaction(async (tx) => {

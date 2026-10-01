@@ -23,6 +23,7 @@ type Fila = {
   atento: number;
   ideal: number;
   infaltable: boolean;
+  es_repuesto: boolean;
   ubicacion: string | null;
   consumo_90: number;
 };
@@ -30,16 +31,16 @@ type Fila = {
 export default async function Insumos({
   searchParams,
 }: {
-  searchParams: Promise<{ nivel?: string; cat?: string; q?: string; inf?: string }>;
+  searchParams: Promise<{ nivel?: string; cat?: string; q?: string; inf?: string; rep?: string }>;
 }) {
   const sesion = await requerirSesion();
-  const { nivel = "todos", cat, q, inf } = await searchParams;
+  const { nivel = "todos", cat, q, inf, rep } = await searchParams;
 
   const [lista, cats] = await Promise.all([
     filas<Fila>(sql`
       select i.id, i.codigo, i.nombre, c.nombre as categoria, i.unidad, i.stock::float8 as stock,
              i.critico::float8 as critico, i.atento::float8 as atento, i.ideal::float8 as ideal,
-             i.infaltable, i.ubicacion,
+             i.infaltable, i.es_repuesto, i.ubicacion,
              coalesce((select -sum(m.cantidad) from movimientos_insumo m
                         where m.insumo_id = i.id and m.tipo = 'consumo'
                           and m.fecha >= current_date - 90), 0)::float8 as consumo_90
@@ -47,6 +48,7 @@ export default async function Insumos({
        where i.activo
          ${cat ? sql`and i.categoria_id = ${Number(cat)}` : sql``}
          ${inf === "1" ? sql`and i.infaltable` : sql``}
+         ${rep === "1" ? sql`and i.es_repuesto` : rep === "0" ? sql`and not i.es_repuesto` : sql``}
          ${q ? sql`and (i.nombre ilike ${"%" + q + "%"} or i.codigo ilike ${"%" + q + "%"})` : sql``}
        order by i.nombre
     `),
@@ -62,7 +64,7 @@ export default async function Insumos({
 
   const qs = (cambios: Record<string, string | undefined>) => {
     const p = new URLSearchParams();
-    const todo = { nivel, cat, q, inf, ...cambios };
+    const todo = { nivel, cat, q, inf, rep, ...cambios };
     for (const [k, v] of Object.entries(todo)) if (v && v !== "todos") p.set(k, v);
     return `/insumos?${p}`;
   };
@@ -96,6 +98,11 @@ export default async function Insumos({
               {c.nombre}
             </option>
           ))}
+        </select>
+        <select name="rep" defaultValue={rep ?? ""} className="campo w-auto">
+          <option value="">Insumos y repuestos</option>
+          <option value="0">Solo insumos de taller</option>
+          <option value="1">Solo repuestos</option>
         </select>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
           <input type="checkbox" name="inf" value="1" defaultChecked={inf === "1"} className="h-5 w-5" />
@@ -131,6 +138,7 @@ export default async function Insumos({
                       </Link>
                       <div className="mt-0.5 flex flex-wrap gap-1 text-xs text-slate-500">
                         {i.infaltable && <Chip tono="oscuro">infaltable</Chip>}
+                        {i.es_repuesto && <Chip tono="azul">repuesto</Chip>}
                         {i.codigo && <span className="codigo">{i.codigo}</span>}
                         {i.categoria && <span>{i.categoria}</span>}
                         {i.ubicacion && <span>· {i.ubicacion}</span>}
