@@ -748,6 +748,16 @@ export const documentoVersiones = pgTable(
     fecha: date("fecha").notNull(),
     /** Qué cambió respecto de la anterior. */
     nota: text("nota"),
+    /**
+     * Si el archivo se subió desde la app: su id en Drive (null mientras está
+     * en Vercel Blob, o si es un link pegado a mano). `url` apunta entonces a
+     * /api/drive/<id>, que lo sirve con las credenciales del servidor: el
+     * usuario nunca ve Drive.
+     */
+    driveFileId: text("drive_file_id"),
+    nombreArchivo: text("nombre_archivo"),
+    mime: text("mime"),
+    tamanoBytes: integer("tamano_bytes"),
     creadoPorId: integer("creado_por_id").notNull().references(() => usuarios.id),
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -831,3 +841,14 @@ export const partesFabricacion = pgTable(
   },
   (t) => [index("partes_fabricacion_orden_idx").on(t.ordenId, t.fecha)],
 );
+
+/**
+ * Las carpetas que la app crea en Drive para ordenar los archivos:
+ * "Máquinas/Carrusel de mesas", "Obras/Local Catamarca". Se crean una vez y se
+ * recuerdan acá, así renombrar la máquina no duplica carpetas.
+ */
+export const driveCarpetas = pgTable("drive_carpetas", {
+  clave: text("clave").primaryKey(),
+  folderId: text("folder_id").notNull(),
+  creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+});

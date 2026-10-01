@@ -4,13 +4,19 @@ import { requerirSesion } from "@/lib/auth";
 import { fila } from "@/lib/db/filas";
 import { Titulo } from "@/components/ui";
 import { enModoPrueba } from "@/lib/configuracion";
+import { estadoArchivos, subidaHabilitada } from "@/lib/archivos-servidor";
+import { driveConfigurado } from "@/lib/drive";
+import { BotonAccion } from "@/components/admin";
+import { reintentarDrive } from "@/lib/acciones/archivos";
 
 export const metadata = { title: "Configuración · Taller" };
 export const dynamic = "force-dynamic";
 
 export default async function Admin() {
   const sesion = await requerirSesion();
-  const prueba = await enModoPrueba();
+  const [prueba, archivos] = await Promise.all([enModoPrueba(), estadoArchivos()]);
+  const drive = driveConfigurado();
+  const blob = subidaHabilitada();
   const n = await fila<Record<string, number | string | null>>(sql`
     select
       (select count(*) from usuarios where activo)::int as usuarios,
@@ -71,6 +77,34 @@ export default async function Admin() {
           </li>
         ))}
       </ul>
+
+      <div className="tarjeta mt-5 space-y-2 p-5 text-sm">
+        <h2 className="text-base font-bold">Archivos</h2>
+        <p>
+          Subida desde la app: {blob ? <strong className="text-verde">activa</strong> : <strong className="text-rojo">sin configurar</strong>}
+          {" · "}Guardado en Drive: {drive ? <strong className="text-verde">conectado</strong> : <strong className="text-rojo">sin configurar</strong>}
+        </p>
+        <p className="text-slate-600">
+          {archivos?.en_drive ?? 0} en Drive · {archivos?.pendientes ?? 0} esperando pasar a Drive · {archivos?.links ?? 0} links externos
+          {archivos?.bytes ? ` · ${(archivos.bytes / 1024 / 1024 / 1024).toLocaleString("es-AR", { maximumFractionDigits: 2 })} GB` : ""}
+        </p>
+        {!blob && (
+          <p className="text-xs text-slate-500">
+            Falta la variable <code>BLOB_READ_WRITE_TOKEN</code> en Vercel (Storage → Blob → conectar al proyecto). Mientras tanto, solo se pueden pegar links.
+          </p>
+        )}
+        {!drive && (
+          <p className="text-xs text-slate-500">
+            Faltan <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code> y <code>GOOGLE_REFRESH_TOKEN</code>. Mientras tanto, los archivos quedan en
+            Vercel Blob y se ven igual; pasan a Drive solos cuando se configure.
+          </p>
+        )}
+        {drive && (archivos?.pendientes ?? 0) > 0 && (
+          <BotonAccion accion={reintentarDrive} clase="boton-secundario">
+            Pasar a Drive los pendientes ahora
+          </BotonAccion>
+        )}
+      </div>
     </>
   );
 }

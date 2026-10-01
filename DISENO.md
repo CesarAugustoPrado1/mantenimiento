@@ -237,25 +237,38 @@ cada equipo tiene además un botón "Cambiar estado".
 ### 1.11 Archivos: planos, manuales y fotos
 
 Cada archivo tiene **nombre propio** ("Plano eje de la corona"), tipo (plano,
-despiece, manual, foto, certificado, otro) y es de una máquina, de una obra o de
-un repuesto (o general). Tiene **versiones**: una nueva nunca pisa la anterior,
-la vigente es la de número mayor y las viejas quedan a un toque.
+despiece, manual, foto, certificado, otro) y es de una máquina, de una obra, de
+un repuesto o de un producto (o general). Tiene **versiones**: una nueva nunca
+pisa la anterior, la vigente es la de número mayor y las viejas quedan a un
+toque.
 
-El archivo **vive en Drive**: la app guarda el link de cada versión. Es la
-decisión de arranque: costo cero, sin límites de la app, y el archivo sigue en
-manos de la empresa. Si más adelante conviene subir directo desde la app (por
-ejemplo, fotos desde el celular), cambia de dónde sale el link, no el modelo.
+**Drive es invisible para el usuario.** Igual que en entregas-app:
 
-- Cada máquina, obra y repuesto tiene el botón **📁 Archivos** a los suyos, y
-  máquinas y obras pueden tener vinculada **su carpeta de Drive**.
-- Las fotos de obra llevan **etapa** (antes, durante, después) y se ven en una
-  galería de tres columnas en la ficha de la obra. La miniatura sale de Drive
-  si el archivo está compartido "cualquiera con el vínculo".
-- `/archivos` es el repositorio entero, con filtro por tipo y búsqueda.
+1. El navegador sube el archivo **directo a Vercel Blob** (sin pasar por el
+   servidor: no hay límite de 4,5 MB). En el celular, el botón abre la cámara o
+   la galería, y en obras se pueden elegir varias fotos de una.
+2. La app guarda el registro y responde enseguida.
+3. En segundo plano (`after`) lo **copia a Google Drive**, en su carpeta, y lo
+   borra del Blob (que es caro para guardar; Drive no).
+4. El link pasa a ser `/api/drive/<id>`: la app lo sirve con sus credenciales.
+   Pide sesión y solo sirve archivos que la app conoce.
 
-**Pendiente de definir con el Drive en la mano:** la estructura de carpetas
-(una por máquina y por obra), quién es dueño, y si vale la pena la subida
-directa desde la app.
+Las carpetas se crean solas y quedan ordenadas:
+
+```
+Mantenimiento y Taller/
+  Máquinas/Carrusel de mesas (CAR-01)/Planos/Plano eje de la corona - v2.pdf
+  Vehículos/Hilux blanca (AB123CD)/Manuales/…
+  Obras/Local Catamarca/Fotos - Antes/…
+  Repuestos/Eje de la corona del carrusel/…
+  Fabricación/Esqueleto para molde/Planos/…
+```
+
+Cada carpeta se recuerda por una clave estable (`activo/12`), así renombrar una
+máquina no duplica carpetas. Si el paso a Drive falla, el archivo sigue en Blob
+y se ve igual; se reintenta todos los días (cron) o con el botón de
+Configuración. Pegar un link a algo que ya está en otro lado sigue siendo
+posible, como opción secundaria.
 
 ### 1.12 Fabricación propia
 

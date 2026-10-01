@@ -246,6 +246,10 @@ export type FilaDocumento = {
   url: string;
   fecha: string;
   nota_version: string | null;
+  mime: string | null;
+  nombre_archivo: string | null;
+  tamano_bytes: number | null;
+  en_drive: boolean;
   creado_en: string;
   creado_por_id: number;
   versiones: Array<{ version: number; url: string; fecha: string; nota: string | null; usuario: string }>;
@@ -265,6 +269,7 @@ export function documentos(filtro: {
            d.activo_id, a.nombre as activo, d.obra_id, o.titulo as obra, d.insumo_id, i.nombre as insumo,
            d.producto_id, pr.nombre as producto,
            v.version, v.url, v.fecha::text as fecha, v.nota as nota_version,
+           v.mime, v.nombre_archivo, v.tamano_bytes, (v.drive_file_id is not null) as en_drive,
            d.creado_en::text as creado_en, d.creado_por_id,
            (select json_agg(json_build_object('version', x.version, 'url', x.url, 'fecha', x.fecha::text,
                                               'nota', x.nota, 'usuario', u.nombre) order by x.version desc)
@@ -272,7 +277,7 @@ export function documentos(filtro: {
              where x.documento_id = d.id) as versiones
       from documentos d
       join lateral (
-        select version, url, fecha, nota from documento_versiones
+        select version, url, fecha, nota, mime, nombre_archivo, tamano_bytes, drive_file_id from documento_versiones
          where documento_id = d.id order by version desc limit 1
       ) v on true
       left join activos a on a.id = d.activo_id

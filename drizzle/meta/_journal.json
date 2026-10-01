@@ -57,6 +57,13 @@
       "when": 1790881938253,
       "tag": "0007_fabricacion",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790892883794,
+      "tag": "0008_subida-a-drive",
+      "breakpoints": true
     }
   ]
 }

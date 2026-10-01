@@ -562,6 +562,19 @@ ALTER TABLE "movimientos_insumo" ADD CONSTRAINT "movimientos_insumo_orden_fabric
 CREATE INDEX "documentos_producto_idx" ON "documentos" USING btree ("producto_id");
 insert into drizzle.__drizzle_migrations (hash, created_at) values ('8b0859e374a8b44fbd70ba16aed7c437ab44e94b4a8eb2813e8fb85348153da3', 1790881938253);
 
+-- 0008_subida-a-drive
+CREATE TABLE "drive_carpetas" (
+	"clave" text PRIMARY KEY NOT NULL,
+	"folder_id" text NOT NULL,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE "documento_versiones" ADD COLUMN "drive_file_id" text;
+ALTER TABLE "documento_versiones" ADD COLUMN "nombre_archivo" text;
+ALTER TABLE "documento_versiones" ADD COLUMN "mime" text;
+ALTER TABLE "documento_versiones" ADD COLUMN "tamano_bytes" integer;
+insert into drizzle.__drizzle_migrations (hash, created_at) values ('5d6daa5b7d85badff53891d9f3aedcb47d704df95c2a908306d587db4578c210', 1790892883794);
+
 -- Datos de arranque
 insert into causas (nombre, descripcion) values
   ('Desgaste normal', 'Llegó al fin de su vida útil.'),
@@ -589,13 +602,13 @@ insert into categorias_insumo (nombre) values
 on conflict do nothing;
 
 insert into usuarios (usuario, nombre, rol, pin_hash)
-values ('admin', 'Administrador', 'admin', '$2a$10$qkJGfbqyaL6q4es.fqUhdOszIiuboMF7GGyY9O0S84/SD3w/zrs0e')
+values ('admin', 'Administrador', 'admin', '$2a$10$yID9mLIcbHS6n3sX/NUELeeopM8fOsRy40gzkvKu05q2iLP4f8FJe')
 on conflict (usuario) do nothing;
 
 commit;
 
 -- Verificación: Neon muestra el resultado de esta última consulta.
--- Tiene que decir 33 tablas, 8 migraciones, 8 causas, 11 categorías y admin (admin).
+-- Tiene que decir 34 tablas, 9 migraciones, 8 causas, 11 categorías y admin (admin).
 select
   (select count(*) from information_schema.tables where table_schema = 'public') as tablas,
   (select count(*) from drizzle.__drizzle_migrations) as migraciones,

@@ -72,6 +72,7 @@ export function Formulario({
   alGuardar,
   cerrar,
   textoBoton = "Guardar",
+  textoEnviando,
 }: {
   titulo: string;
   children: ReactNode;
@@ -79,6 +80,8 @@ export function Formulario({
   alGuardar: () => Promise<Resultado<unknown>>;
   cerrar: () => void;
   textoBoton?: string;
+  /** Lo que dice el botón mientras guarda (ej. "Subiendo… 40%"). */
+  textoEnviando?: string | null;
 }) {
   const router = useRouter();
   const { ejecutar, enviando, error, limpiar } = useAccion();
@@ -104,7 +107,7 @@ export function Formulario({
             });
           }}
         >
-          {enviando ? "Guardando…" : textoBoton}
+          {enviando ? (textoEnviando ?? "Guardando…") : textoBoton}
         </button>
       </div>
     </div>

@@ -14,14 +14,16 @@ export function FilaArchivo({
   configura,
   mostrarDueno,
   yo,
+  subida,
 }: {
   d: FilaDocumento;
   opera: boolean;
   configura: boolean;
   mostrarDueno: boolean;
   yo: number;
+  subida: boolean;
 }) {
-  const mini = d.tipo === "foto" ? miniatura(d.url, 200) : null;
+  const mini = d.tipo === "foto" || d.mime?.startsWith("image/") ? miniatura(d.url, 200, d.mime) : null;
   return (
     <li className="tarjeta p-4">
       <div className="flex items-start gap-3">
@@ -52,6 +54,8 @@ export function FilaArchivo({
               </>
             )}
             {fmtFecha(d.fecha)}
+            {d.tamano_bytes ? ` · ${tamano(d.tamano_bytes)}` : ""}
+            {d.nombre_archivo && !d.en_drive && " · guardando…"}
             {d.nota_version && ` · ${d.nota_version}`}
             {d.nota && ` · ${d.nota}`}
           </p>
@@ -72,7 +76,7 @@ export function FilaArchivo({
             </details>
           )}
           <div className="mt-1.5 flex flex-wrap gap-3">
-            {opera && <NuevaVersion documentoId={d.id} version={d.version} />}
+            {opera && <NuevaVersion documentoId={d.id} version={d.version} subida={subida} />}
             {opera && (configura || d.creado_por_id === yo) && dentroDeVentana(d.creado_en) && (
               <BorrarPorError tipo="documento" id={d.id} que={`«${d.titulo}»`} />
             )}
@@ -111,7 +115,7 @@ export function GaleriaObra({ fotos }: { fotos: FilaDocumento[] }) {
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 {lista.map((f) => {
-                  const mini = miniatura(f.url, 300);
+                  const mini = miniatura(f.url, 300, f.mime);
                   return (
                     <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" title={f.titulo} className="block">
                       {mini ? (
@@ -132,4 +136,9 @@ export function GaleriaObra({ fotos }: { fotos: FilaDocumento[] }) {
       })}
     </div>
   );
+}
+
+function tamano(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toLocaleString("es-AR", { maximumFractionDigits: 1 })} MB`;
 }

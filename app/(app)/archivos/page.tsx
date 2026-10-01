@@ -7,7 +7,8 @@ import { CONFIGURAN, OPERAN } from "@/lib/permisos";
 import { ETIQUETA_TIPO } from "@/lib/archivos";
 import type { TipoDocumento } from "@/lib/db/schema";
 import { Pestanas, Titulo, Vacio, Volver } from "@/components/ui";
-import { Carpeta, NuevoArchivo } from "@/components/archivos";
+import { NuevoArchivo } from "@/components/archivos";
+import { subidaHabilitada } from "@/lib/archivos-servidor";
 import { FilaArchivo } from "@/components/lista-archivos";
 
 export const metadata = { title: "Archivos · Taller" };
@@ -108,6 +109,7 @@ export default async function Archivos({
                   : undefined
               }
               tipoInicial={obraId ? "foto" : "plano"}
+              subida={subidaHabilitada()}
             />
           ) : null
         }
@@ -115,11 +117,6 @@ export default async function Archivos({
         {titulo}
       </Titulo>
 
-      {(activoId || obraId) && contexto && (
-        <div className="mb-4">
-          <Carpeta activoId={activoId} obraId={obraId} url={contexto.carpeta_url} puedeEditar={configura} />
-        </div>
-      )}
 
       <Pestanas
         actual={tipo ?? "todos"}
@@ -142,12 +139,12 @@ export default async function Archivos({
         <Vacio>
           {archivados
             ? "No hay archivos archivados."
-            : "Todavía no hay archivos. Subí el archivo a Drive, compartilo con «cualquiera con el vínculo» y pegá el link con «+ Archivo»."}
+            : "Todavía no hay archivos. Usá «+ Archivo» para subir planos, manuales o fotos."}
         </Vacio>
       ) : (
         <ul className="space-y-2">
           {lista.map((d) => (
-            <FilaArchivo key={d.id} d={d} opera={opera} configura={configura} mostrarDueno={!contexto} yo={sesion.uid} />
+            <FilaArchivo key={d.id} d={d} opera={opera} configura={configura} mostrarDueno={!contexto} yo={sesion.uid} subida={subidaHabilitada()} />
           ))}
         </ul>
       )}

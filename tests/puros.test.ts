@@ -257,6 +257,9 @@ test("archivos: reconoce los links de Drive como se copian", () => {
   assert.equal(miniatura(`https://drive.google.com/file/d/${id}/view`), `https://drive.google.com/thumbnail?id=${id}&sz=w400`);
   assert.equal(miniatura("https://x.com/plano.pdf"), null);
   assert.equal(miniatura("https://x.com/foto.JPG"), "https://x.com/foto.JPG");
+  assert.equal(miniatura("/api/drive/abc123", 400, "image/jpeg"), "/api/drive/abc123?mini=1");
+  assert.equal(miniatura("/api/drive/abc123", 400, "application/pdf"), null);
+  assert.equal(miniatura("https://x1.public.blob.vercel-storage.com/archivos/a-1.jpg", 400, "image/jpeg"), "https://x1.public.blob.vercel-storage.com/archivos/a-1.jpg");
   assert.equal(esUrl("drive.google.com/x"), false);
   assert.equal(esUrl("javascript:alert(1)"), false);
 });

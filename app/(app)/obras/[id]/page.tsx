@@ -4,7 +4,8 @@ import { requerirSesion } from "@/lib/auth";
 import { fila, filas } from "@/lib/db/filas";
 import { documentos as leerDocumentos, usuariosActivos } from "@/lib/consultas";
 import Link from "next/link";
-import { Carpeta, NuevoArchivo } from "@/components/archivos";
+import { NuevoArchivo } from "@/components/archivos";
+import { subidaHabilitada } from "@/lib/archivos-servidor";
 import { GaleriaObra } from "@/components/lista-archivos";
 import { BorrarPorError } from "@/components/borrar-error";
 import { dentroDeVentana } from "@/lib/borrado";
@@ -276,12 +277,20 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
                 <Link href={`/archivos?obra=${o.id}`} className="text-sm font-semibold text-slate-700 underline">
                   📁 Todos los archivos ({docs.length})
                 </Link>
-                {opera && <NuevoArchivo dueno={{ obraId: o.id }} tipoInicial="foto" etapaInicial="durante" texto="+ Foto" clase="text-sm font-semibold text-slate-700 underline" />}
+                {opera && (
+                  <NuevoArchivo
+                    dueno={{ obraId: o.id }}
+                    tipoInicial="foto"
+                    etapaInicial="durante"
+                    texto="+ Fotos"
+                    clase="text-sm font-semibold text-slate-700 underline"
+                    subida={subidaHabilitada()}
+                  />
+                )}
               </span>
             </div>
             <div className="tarjeta space-y-3 p-4">
               <GaleriaObra fotos={fotos} />
-              <Carpeta obraId={o.id} url={o.carpeta_url} puedeEditar={configura} />
             </div>
           </div>
         </section>

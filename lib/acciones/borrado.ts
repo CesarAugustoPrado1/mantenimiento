@@ -25,6 +25,8 @@ import { CONFIGURAN, OPERAN } from "../permisos";
 import { dentroDeVentana, esViolacionFK, VENTANA_HORAS, type TipoBorrable } from "../borrado";
 import { ErrorDeNegocio, ejecutar, fallar, type Resultado } from "./comun";
 import { id } from "./validacion";
+import { after } from "next/server";
+import { filas } from "../db/filas";
 
 const esquema = z.object({
   tipo: z.enum(["activo", "insumo", "herramienta", "obra", "plan", "trabajo", "compra", "documento", "producto", "orden"]),
@@ -80,6 +82,8 @@ export async function borrarCargadoPorError(entrada: z.input<typeof esquema>): P
       if (!configura) fallar("Esto lo borra el jefe de taller.");
     };
 
+    // Las copias en Drive o Blob de un archivo borrado se borran después de confirmar.
+    let copias: Array<{ url: string; drive_file_id: string | null }> = [];
     try {
       await db.transaction(async (tx) => {
         switch (tipo) {
@@ -190,6 +194,8 @@ export async function borrarCargadoPorError(entrada: z.input<typeof esquema>): P
             if (!d) fallar("No existe.");
             if (!configura && d.creadoPorId !== yo.uid) fallar("Solo podés borrar lo que cargaste vos.");
             if (!dentroDeVentana(d.creadoEn)) vencido();
+            copias = await filas<{ url: string; drive_file_id: string | null }>(sql`
+              select url, drive_file_id from documento_versiones where documento_id = ${rid}`);
             await tx.delete(documentos).where(eq(documentos.id, rid));
             break;
           }
@@ -220,6 +226,13 @@ export async function borrarCargadoPorError(entrada: z.input<typeof esquema>): P
       if (e instanceof ErrorDeNegocio) throw e;
       if (esViolacionFK(e)) noSePuede(tipo, "ya tiene otras cosas cargadas que lo usan");
       throw e;
+    }
+    if (copias.length) {
+      const lista = copias;
+      after(async () => {
+        const { borrarCopiasDe } = await import("../archivos-servidor");
+        await borrarCopiasDe(lista);
+      });
     }
     revalidatePath("/", "layout");
   });

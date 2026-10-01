@@ -23,7 +23,11 @@ Tailwind v4 · Drizzle ORM · PostgreSQL en Neon · Vercel (región `gru1`).
 2. **Vercel**: importar el repo y cargar en Settings → Environment Variables
    (Production): `DATABASE_URL` (la URL *pooled*, con `-pooler`),
    `SESSION_SECRET` (una clave larga al azar), `DIRECT_URL` (la directa, sin
-   `-pooler`) y `CRON_SECRET` (otra clave al azar: habilita el dólar automático). Si las cargás después del primer deploy, volvé a desplegar.
+   `-pooler`) y `CRON_SECRET` (otra clave al azar: habilita el dólar automático
+   y el reintento diario de archivos). Para los archivos: conectar un **Blob
+   store** al proyecto (Storage → Blob, crea `BLOB_READ_WRITE_TOKEN`) y cargar
+   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REFRESH_TOKEN` de la
+   cuenta de Drive (mismo esquema que entregas-app). Si las cargás después del primer deploy, volvé a desplegar.
 3. Entrar con `admin` / `1234` y **cambiar el PIN** en Configuración → Usuarios.
 4. Crear los usuarios (jefe de taller, técnicos, conductores, auditoría) y
    empezar a cargar: insumos, máquinas, vehículos y sus planes.
