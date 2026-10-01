@@ -8,6 +8,9 @@ import { fmtFecha, fmtNum, fmtPesos, hoyAR } from "@/lib/formato";
 import { coberturaDias, compraSugerida, nivelDeStock } from "@/lib/semaforo";
 import { Chip, ChipCriticidad, Semaforo, Titulo, Volver } from "@/components/ui";
 import Link from "next/link";
+import { BorrarPorError } from "@/components/borrar-error";
+import { dentroDeVentana } from "@/lib/borrado";
+
 import { EditarInsumo, PanelMovimiento } from "./panel";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +33,7 @@ type Insumo = {
   activo: boolean;
   es_repuesto: boolean;
   tiempo_reposicion_dias: number | null;
+  creado_en: string;
   consumo_90: number;
   ultimo_precio: number | null;
   ultimo_precio_fecha: string | null;
@@ -45,7 +49,7 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
       select i.id, i.codigo, i.nombre, i.categoria_id, c.nombre as categoria, i.unidad,
              i.stock::float8 as stock, i.critico::float8 as critico, i.atento::float8 as atento,
              i.ideal::float8 as ideal, i.infaltable, i.ubicacion, i.proveedor, i.nota, i.activo,
-             i.es_repuesto, i.tiempo_reposicion_dias,
+             i.es_repuesto, i.tiempo_reposicion_dias, i.creado_en::text as creado_en,
              coalesce((select -sum(m.cantidad) from movimientos_insumo m
                         where m.insumo_id = i.id and m.tipo = 'consumo'
                           and m.fecha >= current_date - 90), 0)::float8 as consumo_90,
@@ -71,12 +75,13 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
       obra: string | null;
       trabajo_id: number | null;
       compra_id: number | null;
+      orden_fabricacion_id: number | null;
       precio_unitario: number | null;
       nota: string | null;
     }>(sql`
       select m.id, m.tipo, m.cantidad::float8 as cantidad, m.stock_despues::float8 as stock_despues,
              m.fecha::text as fecha, u.nombre as usuario, a.nombre as activo, a.patente,
-             o.titulo as obra, m.trabajo_id, m.compra_id,
+             o.titulo as obra, m.trabajo_id, m.compra_id, m.orden_fabricacion_id,
              m.precio_unitario::float8 as precio_unitario, m.nota
         from movimientos_insumo m
         join usuarios u on u.id = m.usuario_id
@@ -92,11 +97,13 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
     `),
     categorias(),
     filas<{ nombre: string; patente: string | null; total: number }>(sql`
-      select coalesce(a.nombre, o.titulo, 'Uso general') as nombre, a.patente,
+      select coalesce(a.nombre, o.titulo, 'Fabricación: ' || pr.nombre, 'Uso general') as nombre, a.patente,
              (-sum(m.cantidad))::float8 as total
         from movimientos_insumo m
         left join activos a on a.id = m.activo_id
         left join obras o on o.id = m.obra_id
+        left join ordenes_fabricacion ofa on ofa.id = m.orden_fabricacion_id
+        left join productos pr on pr.id = ofa.producto_id
        where m.insumo_id = ${id} and m.tipo = 'consumo' and m.fecha >= current_date - 365
        group by 1, 2 order by 3 desc limit 8
     `),
@@ -150,6 +157,11 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
         {!i.activo && <Chip>desactivado</Chip>}
       </Titulo>
 
+      {CONFIGURAN.includes(sesion.rol) && dentroDeVentana(i.creado_en) && (
+        <div className="mb-3">
+          <BorrarPorError tipo="insumo" id={i.id} que={i.nombre} destino="/insumos" />
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="tarjeta p-4">
           <p className="text-xs font-semibold text-slate-500 uppercase">Stock</p>
@@ -222,6 +234,7 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
                           m.obra,
                           m.trabajo_id && `trabajo #${m.trabajo_id}`,
                           m.compra_id && `compra #${m.compra_id}`,
+                          m.orden_fabricacion_id && `fabricación #${m.orden_fabricacion_id}`,
                           m.precio_unitario != null && `${fmtPesos(m.precio_unitario)} c/u`,
                           m.nota,
                         ]

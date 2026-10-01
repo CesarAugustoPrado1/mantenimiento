@@ -50,6 +50,13 @@
       "when": 1790881126570,
       "tag": "0006_archivos",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790881938253,
+      "tag": "0007_fabricacion",
+      "breakpoints": true
     }
   ]
 }

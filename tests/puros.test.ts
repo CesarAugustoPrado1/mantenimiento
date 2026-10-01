@@ -260,3 +260,43 @@ test("archivos: reconoce los links de Drive como se copian", () => {
   assert.equal(esUrl("drive.google.com/x"), false);
   assert.equal(esUrl("javascript:alert(1)"), false);
 });
+
+import { avanceOrden, eficiencia, horasPorUnidad, materialesPara } from "../lib/fabricacion";
+
+test("fabricación: avance, horas por unidad y eficiencia", () => {
+  assert.equal(avanceOrden(12, 7), 58);
+  assert.equal(avanceOrden(12, 15), 100);
+  assert.equal(avanceOrden(0, 3), 0);
+  assert.equal(horasPorUnidad(30, 4), 7.5);
+  assert.equal(horasPorUnidad(10, 0), null);
+  assert.equal(eficiencia(6, 7.5), 80); // tardó más que el estándar
+  assert.equal(eficiencia(6, 4.8), 125); // tardó menos
+  assert.equal(eficiencia(null, 5), null);
+});
+
+test("fabricación: materiales según la receta", () => {
+  const receta = [
+    { insumoId: 4, cantidad: 2.5 }, // caño 40x40, barras por esqueleto
+    { insumoId: 3, cantidad: 0.3 }, // electrodos kg
+    { insumoId: 3, cantidad: 0.1 }, // otra línea del mismo insumo: se suma
+    { insumoId: null, cantidad: 1 }, // algo que no es del pañol: no se descuenta
+  ];
+  assert.deepEqual(materialesPara(receta, 4), [
+    { insumoId: 4, cantidad: 10 },
+    { insumoId: 3, cantidad: 1.6 },
+  ]);
+  assert.deepEqual(materialesPara(receta, 0), []);
+});
+
+import { dentroDeVentana, esViolacionFK } from "../lib/borrado";
+
+test("borrado por error: solo dentro de las 24 horas", () => {
+  const ahora = new Date("2026-10-02T12:00:00Z");
+  assert.equal(dentroDeVentana("2026-10-02 09:00:00+00", ahora), true);
+  assert.equal(dentroDeVentana("2026-10-01T12:30:00Z", ahora), true);
+  assert.equal(dentroDeVentana("2026-10-01T11:00:00Z", ahora), false);
+  assert.equal(dentroDeVentana("cualquier cosa", ahora), false);
+  assert.equal(esViolacionFK({ code: "23503" }), true);
+  assert.equal(esViolacionFK({ cause: { code: "23503" } }), true);
+  assert.equal(esViolacionFK(new Error("x")), false);
+});

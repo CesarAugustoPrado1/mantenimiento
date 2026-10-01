@@ -7,6 +7,9 @@ import { agenda, repuestos as leerRepuestos, repuestosDisponibles } from "@/lib/
 import { nivelDeStock } from "@/lib/semaforo";
 import { AgregarRepuesto } from "@/components/repuestos";
 import { CambiarEstadoRapido } from "@/components/estado-equipo";
+import { BorrarPorError } from "@/components/borrar-error";
+import { dentroDeVentana } from "@/lib/borrado";
+
 import { BotonAccion } from "@/components/admin";
 import { quitarRepuesto } from "@/lib/acciones/repuestos";
 import { CONFIGURAN, OPERAN } from "@/lib/permisos";
@@ -38,6 +41,7 @@ type Activo = {
   estado: EstadoActivo;
   caracteristicas: Caracteristica[];
   nota: string | null;
+  creado_en: string;
 };
 
 export default async function FichaActivo({ params }: { params: Promise<{ id: string }> }) {
@@ -48,7 +52,7 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
   const a = await fila<Activo>(sql`
     select a.id, a.clase, a.tipo, a.nombre, a.codigo, a.marca, a.modelo, a.anio, a.numero_serie,
            a.patente, a.ubicacion, a.propiedad, a.responsable_id, u.nombre as responsable,
-           a.medidor, a.combustible, a.estado, a.caracteristicas, a.nota
+           a.medidor, a.combustible, a.estado, a.caracteristicas, a.nota, a.creado_en::text as creado_en
       from activos a left join usuarios u on u.id = a.responsable_id
      where a.id = ${id}
   `);
@@ -141,6 +145,11 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
         {a.patente && <span className="codigo ml-1 rounded-md bg-slate-900 px-2 py-0.5 text-sm text-white">{a.patente}</span>}
       </Titulo>
 
+      {configura && dentroDeVentana(a.creado_en) && (
+        <div className="mb-3">
+          <BorrarPorError tipo="activo" id={a.id} que={a.nombre} destino={volver} />
+        </div>
+      )}
       <div className="mb-5 flex flex-wrap gap-2">
         <ChipEstadoActivo estado={a.estado} />
         {a.propiedad === "empleado" && <Chip tono="azul">vehículo de empleado</Chip>}

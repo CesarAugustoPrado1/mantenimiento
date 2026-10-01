@@ -27,6 +27,7 @@ const esquemaNuevo = z.object({
   activoId: id.nullable().optional(),
   obraId: id.nullable().optional(),
   insumoId: id.nullable().optional(),
+  productoId: id.nullable().optional(),
   etapa: z.enum(["antes", "durante", "despues"]).nullable().optional(),
   nota: texto(500),
   url,
@@ -38,8 +39,8 @@ export async function crearDocumento(entrada: z.input<typeof esquemaNuevo>): Pro
   return ejecutar(async () => {
     const yo = await autorizar(...OPERAN);
     const d = esquemaNuevo.parse(entrada);
-    const duenos = [d.activoId, d.obraId, d.insumoId].filter(Boolean).length;
-    if (duenos > 1) fallar("Un archivo es de una máquina, de una obra o de un repuesto, no de varios.");
+    const duenos = [d.activoId, d.obraId, d.insumoId, d.productoId].filter(Boolean).length;
+    if (duenos > 1) fallar("Un archivo es de una sola cosa: una máquina, una obra, un repuesto o un producto.");
     if (d.etapa && !d.obraId) fallar("La etapa (antes, durante, después) es para fotos de obras.");
     if (d.fecha && d.fecha > hoyAR()) fallar("La fecha no puede ser futura.");
     const nuevo = await db.transaction(async (tx) => {
@@ -51,6 +52,7 @@ export async function crearDocumento(entrada: z.input<typeof esquemaNuevo>): Pro
           activoId: d.activoId ?? null,
           obraId: d.obraId ?? null,
           insumoId: d.insumoId ?? null,
+          productoId: d.productoId ?? null,
           etapa: d.obraId ? (d.etapa ?? null) : null,
           nota: d.nota,
           creadoPorId: yo.uid,

@@ -17,6 +17,10 @@ import { CATEGORIAS, CAUSAS } from "./datos-base";
 import { filasNumeradas } from "../lib/planilla";
 
 const {
+  ordenesFabricacion,
+  partesFabricacion,
+  productoMateriales,
+  productos,
   documentos,
   documentoVersiones,
   activoRepuestos,
@@ -264,6 +268,32 @@ async function ejemplos(db: Db, pin: string) {
   await db.insert(documentoVersiones).values([
     { documentoId: plano.id, version: 1, url: "https://drive.google.com/file/d/1EjemploPlanoVersionUno000/view", fecha: dia(400), creadoPorId: adm.id },
     { documentoId: plano.id, version: 2, url: "https://drive.google.com/file/d/1EjemploPlanoVersionDos000/view", fecha: dia(30), nota: "Eje de 45 mm", creadoPorId: adm.id },
+  ]);
+
+  // Fabricación propia: lo que hace el taller.
+  const prods = await db
+    .insert(productos)
+    .values([
+      { nombre: "Esqueleto para molde", modelo: "Laja 40x40", horasEstandar: "6", descripcion: "Soporte de los moldes de piedra" },
+      { nombre: "Mesa vibradora", modelo: "Línea Piedra", horasEstandar: "40" },
+      { nombre: "Cajón de contramolde", modelo: "Piedra París", horasEstandar: "3" },
+    ])
+    .returning();
+  await db.insert(productoMateriales).values([
+    { productoId: prods[0].id, insumoId: ins[3].id, cantidad: "1.5" },
+    { productoId: prods[0].id, insumoId: ins[2].id, cantidad: "0.2" },
+    { productoId: prods[0].id, insumoId: ins[0].id, cantidad: "1" },
+  ]);
+  const [orden] = await db
+    .insert(ordenesFabricacion)
+    .values({
+      productoId: prods[0].id, cantidad: 6, destino: "Producción Laja 40x40", inicioPlan: dia(10), finPlan: dia(2),
+      estado: "en_curso" as const, fechaInicio: dia(9), responsableId: id("eric"), creadoPorId: adm.id,
+    })
+    .returning();
+  await db.insert(partesFabricacion).values([
+    { ordenId: orden.id, fecha: dia(9), unidades: 2, horasHombre: "14", realizadoPorId: id("eric"), usuarioId: adm.id },
+    { ordenId: orden.id, fecha: dia(5), unidades: 1, horasHombre: "7", realizadoPorId: id("eric"), usuarioId: adm.id },
   ]);
 
   const tipos = await db

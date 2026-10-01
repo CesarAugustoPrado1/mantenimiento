@@ -15,7 +15,7 @@ const ETAPAS = Object.keys(ETIQUETA_ETAPA) as Etapa[];
 const AYUDA_LINK =
   "En Drive: clic derecho en el archivo → Compartir → «Cualquier persona con el vínculo» → Copiar vínculo. Pegalo acá.";
 
-type Dueno = { activoId?: number | null; obraId?: number | null; insumoId?: number | null };
+type Dueno = { activoId?: number | null; obraId?: number | null; insumoId?: number | null; productoId?: number | null };
 
 export function NuevoArchivo({
   dueno,
@@ -31,6 +31,7 @@ export function NuevoArchivo({
     activos: Array<{ id: number; nombre: string }>;
     obras: Array<{ id: number; titulo: string }>;
     insumos: Array<{ id: number; nombre: string }>;
+    productos?: Array<{ id: number; nombre: string }>;
   };
   tipoInicial?: TipoDocumento;
   etapaInicial?: Etapa | null;
@@ -51,6 +52,7 @@ export function NuevoArchivo({
     activoId: clave === "a" ? Number(valor) : null,
     obraId: clave === "o" ? Number(valor) : null,
     insumoId: clave === "i" ? Number(valor) : null,
+    productoId: clave === "p" ? Number(valor) : null,
   };
   const esObra = !!elegido.obraId;
   return (
@@ -102,6 +104,15 @@ export function NuevoArchivo({
                   </option>
                 ))}
               </optgroup>
+              {opciones.productos && (
+                <optgroup label="Productos del taller">
+                  {opciones.productos.map((x) => (
+                    <option key={x.id} value={`p:${x.id}`}>
+                      {x.nombre}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </Campo>
         )}

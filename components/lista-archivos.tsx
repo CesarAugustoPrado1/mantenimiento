@@ -4,9 +4,23 @@ import { ETIQUETA_ETAPA, ETIQUETA_TIPO, ICONO_TIPO, miniatura } from "@/lib/arch
 import { fmtFecha } from "@/lib/formato";
 import { Chip } from "./ui";
 import { EditarArchivo, NuevaVersion } from "./archivos";
+import { BorrarPorError } from "./borrar-error";
+import { dentroDeVentana } from "@/lib/borrado";
 
 /** Un archivo: la versión vigente a un toque, y las anteriores debajo. */
-export function FilaArchivo({ d, opera, configura, mostrarDueno }: { d: FilaDocumento; opera: boolean; configura: boolean; mostrarDueno: boolean }) {
+export function FilaArchivo({
+  d,
+  opera,
+  configura,
+  mostrarDueno,
+  yo,
+}: {
+  d: FilaDocumento;
+  opera: boolean;
+  configura: boolean;
+  mostrarDueno: boolean;
+  yo: number;
+}) {
   const mini = d.tipo === "foto" ? miniatura(d.url, 200) : null;
   return (
     <li className="tarjeta p-4">
@@ -28,11 +42,12 @@ export function FilaArchivo({ d, opera, configura, mostrarDueno }: { d: FilaDocu
             {d.archivado && <Chip tono="amarillo">archivado</Chip>}
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            {mostrarDueno && (d.activo || d.obra || d.insumo) && (
+            {mostrarDueno && (d.activo || d.obra || d.insumo || d.producto) && (
               <>
                 {d.activo_id && <Link href={`/activos/${d.activo_id}`} className="underline">{d.activo}</Link>}
                 {d.obra_id && <Link href={`/obras/${d.obra_id}`} className="underline">{d.obra}</Link>}
                 {d.insumo_id && <Link href={`/insumos/${d.insumo_id}`} className="underline">{d.insumo}</Link>}
+                {d.producto_id && <Link href={`/fabricacion/productos/${d.producto_id}`} className="underline">{d.producto}</Link>}
                 {" · "}
               </>
             )}
@@ -58,6 +73,9 @@ export function FilaArchivo({ d, opera, configura, mostrarDueno }: { d: FilaDocu
           )}
           <div className="mt-1.5 flex flex-wrap gap-3">
             {opera && <NuevaVersion documentoId={d.id} version={d.version} />}
+            {opera && (configura || d.creado_por_id === yo) && dentroDeVentana(d.creado_en) && (
+              <BorrarPorError tipo="documento" id={d.id} que={`«${d.titulo}»`} />
+            )}
             {configura && (
               <EditarArchivo
                 inicial={{ id: d.id, titulo: d.titulo, tipo: d.tipo, etapa: d.etapa, nota: d.nota ?? "", archivado: d.archivado, esDeObra: !!d.obra_id }}

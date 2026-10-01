@@ -23,44 +23,64 @@ export const dynamic = "force-dynamic";
 export default async function Archivos({
   searchParams,
 }: {
-  searchParams: Promise<{ activo?: string; obra?: string; insumo?: string; tipo?: string; q?: string; ver?: string }>;
+  searchParams: Promise<{ activo?: string; obra?: string; insumo?: string; producto?: string; tipo?: string; q?: string; ver?: string }>;
 }) {
   const sesion = await requerirSesion();
   const sp = await searchParams;
   const activoId = Number(sp.activo) || undefined;
   const obraId = Number(sp.obra) || undefined;
   const insumoId = Number(sp.insumo) || undefined;
+  const productoId = Number(sp.producto) || undefined;
   const tipo = sp.tipo && sp.tipo in ETIQUETA_TIPO ? sp.tipo : undefined;
   const archivados = sp.ver === "archivados";
 
   const [lista, contexto, opciones] = await Promise.all([
-    documentos({ activoId, obraId, insumoId, tipo, q: sp.q, archivados }),
+    documentos({ activoId, obraId, insumoId, productoId, tipo, q: sp.q, archivados }),
     activoId
       ? fila<Contexto>(sql`select nombre, carpeta_url, patente, codigo from activos where id = ${activoId}`)
       : obraId
         ? fila<Contexto>(sql`select titulo as nombre, carpeta_url, null as patente, null as codigo from obras where id = ${obraId}`)
         : insumoId
           ? fila<Contexto>(sql`select nombre, null as carpeta_url, null as patente, codigo from insumos where id = ${insumoId}`)
-          : Promise.resolve(undefined),
-    activoId || obraId || insumoId
+          : productoId
+            ? fila<Contexto>(sql`select nombre, null as carpeta_url, null as patente, modelo as codigo from productos where id = ${productoId}`)
+            : Promise.resolve(undefined),
+    activoId || obraId || insumoId || productoId
       ? Promise.resolve(null)
       : Promise.all([
           filas<{ id: number; nombre: string; patente: string | null; codigo: string | null }>(sql`
             select id, nombre, patente, codigo from activos where estado <> 'baja' order by nombre`),
           filas<{ id: number; titulo: string }>(sql`select id, titulo from obras where estado <> 'cancelada' order by id desc`),
           filas<{ id: number; nombre: string }>(sql`select id, nombre from insumos where activo and es_repuesto order by nombre`),
+          filas<{ id: number; nombre: string }>(sql`select id, nombre from productos where activo order by nombre`),
         ]),
   ]);
 
   const opera = OPERAN.includes(sesion.rol);
   const configura = CONFIGURAN.includes(sesion.rol);
-  const base = activoId ? `activo=${activoId}` : obraId ? `obra=${obraId}` : insumoId ? `insumo=${insumoId}` : "";
+  const base = activoId
+    ? `activo=${activoId}`
+    : obraId
+      ? `obra=${obraId}`
+      : insumoId
+        ? `insumo=${insumoId}`
+        : productoId
+          ? `producto=${productoId}`
+          : "";
   const qs = (c: Record<string, string | undefined>) => {
     const p = new URLSearchParams(base);
     for (const [k, v] of Object.entries({ tipo, q: sp.q, ver: sp.ver, ...c })) if (v) p.set(k, v);
     return `/archivos?${p}`;
   };
-  const volver = activoId ? `/activos/${activoId}` : obraId ? `/obras/${obraId}` : insumoId ? `/insumos/${insumoId}` : null;
+  const volver = activoId
+    ? `/activos/${activoId}`
+    : obraId
+      ? `/obras/${obraId}`
+      : insumoId
+        ? `/insumos/${insumoId}`
+        : productoId
+          ? `/fabricacion/productos/${productoId}`
+          : null;
   const titulo = contexto ? `Archivos de ${nombreActivo(contexto)}` : "Archivos";
   const tipos = Object.keys(ETIQUETA_TIPO) as TipoDocumento[];
 
@@ -76,13 +96,14 @@ export default async function Archivos({
         accion={
           opera ? (
             <NuevoArchivo
-              dueno={contexto ? { activoId, obraId, insumoId } : undefined}
+              dueno={contexto ? { activoId, obraId, insumoId, productoId } : undefined}
               opciones={
                 opciones
                   ? {
                       activos: opciones[0].map((a) => ({ id: a.id, nombre: nombreActivo(a) })),
                       obras: opciones[1],
                       insumos: opciones[2],
+                      productos: opciones[3],
                     }
                   : undefined
               }
@@ -111,6 +132,7 @@ export default async function Archivos({
         {activoId && <input type="hidden" name="activo" value={activoId} />}
         {obraId && <input type="hidden" name="obra" value={obraId} />}
         {insumoId && <input type="hidden" name="insumo" value={insumoId} />}
+        {productoId && <input type="hidden" name="producto" value={productoId} />}
         {tipo && <input type="hidden" name="tipo" value={tipo} />}
         <input name="q" defaultValue={sp.q} className="campo max-w-sm" placeholder="Buscar por nombre o nota" />
         <button className="boton-secundario">Buscar</button>
@@ -125,7 +147,7 @@ export default async function Archivos({
       ) : (
         <ul className="space-y-2">
           {lista.map((d) => (
-            <FilaArchivo key={d.id} d={d} opera={opera} configura={configura} mostrarDueno={!contexto} />
+            <FilaArchivo key={d.id} d={d} opera={opera} configura={configura} mostrarDueno={!contexto} yo={sesion.uid} />
           ))}
         </ul>
       )}

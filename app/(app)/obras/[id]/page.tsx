@@ -6,6 +6,9 @@ import { documentos as leerDocumentos, usuariosActivos } from "@/lib/consultas";
 import Link from "next/link";
 import { Carpeta, NuevoArchivo } from "@/components/archivos";
 import { GaleriaObra } from "@/components/lista-archivos";
+import { BorrarPorError } from "@/components/borrar-error";
+import { dentroDeVentana } from "@/lib/borrado";
+
 import { CONFIGURAN, OPERAN } from "@/lib/permisos";
 import { ESTADO_OBRA, type DatosObra } from "@/lib/etiquetas";
 import { fmtFecha, fmtNum, fmtPesos, hoyAR } from "@/lib/formato";
@@ -57,6 +60,7 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
     costo_materiales: number | null;
     carpeta_url: string | null;
     creado_por: string;
+    creado_en: string;
   }>(sql`
     select o.id, o.titulo, o.lugar, o.tipo, o.descripcion, o.estado, o.prioridad,
            o.inicio_plan::text as inicio_plan, o.fin_plan::text as fin_plan,
@@ -64,7 +68,7 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
            o.responsable_id, u.nombre as responsable,
            o.responsable_externo, o.horas_hombre::float8 as horas_hombre,
            o.costo_mano_obra::float8 as costo_mano_obra, o.costo_materiales::float8 as costo_materiales,
-           o.carpeta_url, c.nombre as creado_por
+           o.carpeta_url, c.nombre as creado_por, o.creado_en::text as creado_en
       from obras o left join usuarios u on u.id = o.responsable_id join usuarios c on c.id = o.creado_por_id
      where o.id = ${id}
   `);
@@ -141,6 +145,11 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
         {o.titulo}
       </Titulo>
 
+      {configura && dentroDeVentana(o.creado_en) && (
+        <div className="mb-3">
+          <BorrarPorError tipo="obra" id={o.id} que={o.titulo} destino="/obras" />
+        </div>
+      )}
       <div className="tarjeta mb-5 space-y-3 p-5">
         <BarraAvance progreso={avance} />
         <div className="flex flex-wrap gap-1.5">

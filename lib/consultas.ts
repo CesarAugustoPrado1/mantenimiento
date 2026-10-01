@@ -240,10 +240,14 @@ export type FilaDocumento = {
   obra: string | null;
   insumo_id: number | null;
   insumo: string | null;
+  producto_id: number | null;
+  producto: string | null;
   version: number;
   url: string;
   fecha: string;
   nota_version: string | null;
+  creado_en: string;
+  creado_por_id: number;
   versiones: Array<{ version: number; url: string; fecha: string; nota: string | null; usuario: string }>;
 };
 
@@ -251,6 +255,7 @@ export function documentos(filtro: {
   activoId?: number;
   obraId?: number;
   insumoId?: number;
+  productoId?: number;
   tipo?: string;
   q?: string;
   archivados?: boolean;
@@ -258,7 +263,9 @@ export function documentos(filtro: {
   return filas<FilaDocumento>(sql`
     select d.id, d.titulo, d.tipo, d.etapa, d.nota, d.archivado,
            d.activo_id, a.nombre as activo, d.obra_id, o.titulo as obra, d.insumo_id, i.nombre as insumo,
+           d.producto_id, pr.nombre as producto,
            v.version, v.url, v.fecha::text as fecha, v.nota as nota_version,
+           d.creado_en::text as creado_en, d.creado_por_id,
            (select json_agg(json_build_object('version', x.version, 'url', x.url, 'fecha', x.fecha::text,
                                               'nota', x.nota, 'usuario', u.nombre) order by x.version desc)
               from documento_versiones x join usuarios u on u.id = x.creado_por_id
@@ -271,10 +278,12 @@ export function documentos(filtro: {
       left join activos a on a.id = d.activo_id
       left join obras o on o.id = d.obra_id
       left join insumos i on i.id = d.insumo_id
+      left join productos pr on pr.id = d.producto_id
      where ${filtro.archivados ? sql`d.archivado` : sql`not d.archivado`}
        ${filtro.activoId ? sql`and d.activo_id = ${filtro.activoId}` : sql``}
        ${filtro.obraId ? sql`and d.obra_id = ${filtro.obraId}` : sql``}
        ${filtro.insumoId ? sql`and d.insumo_id = ${filtro.insumoId}` : sql``}
+       ${filtro.productoId ? sql`and d.producto_id = ${filtro.productoId}` : sql``}
        ${filtro.tipo ? sql`and d.tipo = ${filtro.tipo}` : sql``}
        ${filtro.q ? sql`and (d.titulo ilike ${"%" + filtro.q + "%"} or d.nota ilike ${"%" + filtro.q + "%"})` : sql``}
      order by d.tipo, d.titulo

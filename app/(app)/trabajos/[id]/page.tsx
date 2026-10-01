@@ -4,12 +4,15 @@ import { sql } from "drizzle-orm";
 import { requerirSesion } from "@/lib/auth";
 import { fila, filas } from "@/lib/db/filas";
 import { causasActivas, insumosActivos, nombreActivo, usuariosActivos } from "@/lib/consultas";
-import { OPERAN } from "@/lib/permisos";
+import { CONFIGURAN, OPERAN } from "@/lib/permisos";
 import { fmtFecha, fmtNum, fmtPesos, hoyAR, UNIDAD_MEDIDOR } from "@/lib/formato";
 import type { EstadoActivo, Medidor, ValorCelda } from "@/lib/db/schema";
 import { COLUMNA_UNICA, hallazgos, tituloHallazgo } from "@/lib/planilla";
 import { Chip, ChipEstadoActivo, ChipPrioridad, Titulo, Volver } from "@/components/ui";
 import { NuevoAvance, Seguimiento } from "./seguimiento";
+import { BorrarPorError } from "@/components/borrar-error";
+import { dentroDeVentana } from "@/lib/borrado";
+
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +46,8 @@ type Trabajo = {
   medidor: Medidor;
   estado_activo: EstadoActivo;
   responsable_id: number | null;
+  reportado_por_id: number;
+  creado_en: string;
 };
 
 const RESULTADO = {
@@ -65,7 +70,7 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
            t.costo_repuestos::float8 as costo_repuestos, t.observaciones,
            ur.nombre as reportado, t.realizado_por_id, uh.nombre as realizado, t.realizado_externo,
            t.plan_id, a.id as activo_id, a.nombre as activo, a.patente, a.codigo, a.medidor,
-           a.estado as estado_activo, a.responsable_id
+           a.estado as estado_activo, a.responsable_id, t.reportado_por_id, t.creado_en::text as creado_en
       from trabajos t
       join activos a on a.id = t.activo_id
       join usuarios ur on ur.id = t.reportado_por_id
@@ -140,6 +145,13 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
         {t.titulo}
       </Titulo>
 
+      {OPERAN.includes(sesion.rol) &&
+        (CONFIGURAN.includes(sesion.rol) || t.reportado_por_id === sesion.uid) &&
+        dentroDeVentana(t.creado_en) && (
+          <div className="mb-3">
+            <BorrarPorError tipo="trabajo" id={t.id} que={`«${t.titulo}»`} destino={`/activos/${t.activo_id}`} />
+          </div>
+        )}
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="space-y-4">
           <div className="tarjeta space-y-2 p-5 text-sm">

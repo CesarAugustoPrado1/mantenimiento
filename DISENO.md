@@ -257,6 +257,35 @@ ejemplo, fotos desde el celular), cambia de dónde sale el link, no el modelo.
 (una por máquina y por obra), quién es dueño, y si vale la pena la subida
 directa desde la app.
 
+### 1.12 Fabricación propia
+
+Lo que el taller fabrica: mesas vibradoras, cajones de contramolde, esqueletos
+(soportes de los moldes de piedra) y lo que aparezca.
+
+- **Producto**: nombre, para qué modelo o uso, **receta** (materiales por
+  unidad, del pañol o no), **horas hombre estándar por unidad**, planos en
+  Archivos.
+- **Orden de fabricación**: producto, cantidad, para quién, responsable y fechas
+  **comprometidas** de inicio y fin. Se mide igual que las obras.
+- **Parte de producción**: fecha, unidades terminadas (0 si se avanzó sin
+  terminar ninguna), horas hombre y quién. Opcionalmente descuenta del pañol los
+  materiales de la receta por las unidades terminadas. La orden sigue a sus
+  partes: arranca con el primero y termina cuando llega a la cantidad.
+- **Estadísticas** por año: unidades fabricadas, horas reales por unidad contra
+  el estándar (**eficiencia**: 100% es lo previsto) y cumplimiento de fechas.
+
+### 1.13 Borrar lo cargado por error
+
+Nada se borra, salvo lo cargado por error: dentro de las **24 horas** del alta y
+si todavía **no tiene nada colgado** (un equipo sin planes, lecturas ni
+trabajos; un insumo sin más movimiento que su stock inicial; una orden sin
+partes). Lo controla la base con sus claves foráneas: si algo lo usa, el
+borrado falla y la app explica por qué y sugiere darlo de baja. Pasadas las 24
+horas el botón no aparece: el registro ya es historia.
+
+Borrar un correctivo cargado por error deshace el cambio de estado que generó
+en el equipo, si nadie lo cambió después.
+
 ---
 
 ## 2. Roles

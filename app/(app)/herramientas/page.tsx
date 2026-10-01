@@ -6,6 +6,7 @@ import { ESTADO_HERRAMIENTA } from "@/lib/etiquetas";
 import type { EstadoHerramienta } from "@/lib/db/schema";
 import { Chip, Pestanas, Titulo, Vacio } from "@/components/ui";
 import { EditarTipo, EditarUnidad } from "./panel";
+import { BorrarPorError } from "@/components/borrar-error";
 
 export const metadata = { title: "Herramientas · Taller" };
 export const dynamic = "force-dynamic";
@@ -150,6 +151,11 @@ export default async function Herramientas({ searchParams }: { searchParams: Pro
                     </li>
                   ))}
                 </ul>
+              )}
+              {configura && t.us.length === 0 && (
+                <div className="mt-2">
+                  <BorrarPorError tipo="herramienta" id={t.id} que={t.nombre} />
+                </div>
               )}
               {configura && (
                 <div className="mt-2">

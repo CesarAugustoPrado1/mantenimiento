@@ -29,6 +29,7 @@ export type Movimiento = {
   trabajoId?: number | null;
   obraId?: number | null;
   compraId?: number | null;
+  ordenFabricacionId?: number | null;
   precioUnitario?: number | null;
   nota?: string | null;
 };
@@ -71,6 +72,7 @@ export async function moverStock(tx: Tx, m: Movimiento) {
     trabajoId: m.trabajoId ?? null,
     obraId: m.obraId ?? null,
     compraId: m.compraId ?? null,
+    ordenFabricacionId: m.ordenFabricacionId ?? null,
     precioUnitario: aNumeric(m.precioUnitario ?? null),
     nota: m.nota ?? null,
   });

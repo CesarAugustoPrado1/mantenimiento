@@ -8,6 +8,9 @@ import { ESTADO_COMPRA } from "@/lib/etiquetas";
 import { fmtFecha, fmtNum, fmtPesos, hoyAR } from "@/lib/formato";
 import { Chip, Titulo, Volver } from "@/components/ui";
 import { AccionesCompra, EditorCompra, Recepcion } from "./editor";
+import { BorrarPorError } from "@/components/borrar-error";
+import { dentroDeVentana } from "@/lib/borrado";
+
 
 export const dynamic = "force-dynamic";
 
@@ -25,9 +28,10 @@ export default async function FichaCompra({ params }: { params: Promise<{ id: st
     nota: string | null;
     recibida_en: string | null;
     creado_por: string;
+    creado_en: string;
   }>(sql`
     select c.id, c.titulo, c.fecha::text as fecha, c.estado, c.proveedor, c.nota,
-           c.recibida_en::text as recibida_en, u.nombre as creado_por
+           c.recibida_en::text as recibida_en, u.nombre as creado_por, c.creado_en::text as creado_en
       from compras c join usuarios u on u.id = c.creado_por_id where c.id = ${id}
   `);
   if (!c) notFound();
@@ -65,6 +69,11 @@ export default async function FichaCompra({ params }: { params: Promise<{ id: st
         {c.titulo}
       </Titulo>
 
+      {editable && dentroDeVentana(c.creado_en) && (
+        <div className="mb-3">
+          <BorrarPorError tipo="compra" id={c.id} que={c.titulo} destino="/compras" />
+        </div>
+      )}
       {editable ? (
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="lg:col-span-2">

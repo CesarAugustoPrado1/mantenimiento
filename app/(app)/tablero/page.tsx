@@ -32,6 +32,8 @@ export default async function Tablero() {
         (select count(*) from activos where estado = 'en_reparacion')::int as en_reparacion,
         (select count(*) from activos where estado = 'fuera_de_servicio')::int as fuera_servicio,
         (select count(*) from obras where estado in ('pendiente', 'en_curso'))::int as obras,
+        (select count(*) from ordenes_fabricacion where estado in ('pendiente', 'en_curso'))::int as ordenes,
+        (select count(*) from ordenes_fabricacion where estado in ('pendiente', 'en_curso') and fin_plan < ${hoy})::int as ordenes_atrasadas,
         (select count(distinct i.id) from insumos i join activo_repuestos ar on ar.insumo_id = i.id
           join activos a on a.id = ar.activo_id
           where i.activo and a.estado <> 'baja' and ar.criticidad = 'alta' and i.stock <= i.critico)::int as repuestos_criticos,
@@ -130,6 +132,13 @@ export default async function Tablero() {
           valor={n?.obras ?? 0}
           etiqueta="Obras abiertas"
           detalle="pendientes y en curso"
+        />
+        <Indicador
+          href="/fabricacion"
+          valor={n?.ordenes ?? 0}
+          etiqueta="Órdenes de fabricación"
+          tono={n?.ordenes_atrasadas ? "rojo" : "gris"}
+          detalle={n?.ordenes_atrasadas ? `${n.ordenes_atrasadas} atrasada(s)` : "abiertas, ninguna atrasada"}
         />
         <Indicador
           href="/km"

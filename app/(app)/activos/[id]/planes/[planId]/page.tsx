@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { activos, planes, planMateriales, planTareas } from "@/lib/db/schema";
 import { activosVigentes, insumosActivos, nombreActivo, usuariosActivos } from "@/lib/consultas";
 import { Titulo, Volver } from "@/components/ui";
+import { BorrarPorError } from "@/components/borrar-error";
+import { dentroDeVentana } from "@/lib/borrado";
+
 import { FormularioPlan, type DatosPlan, type Seccion } from "./formulario";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +26,7 @@ export default async function EditorPlan({ params }: { params: Promise<{ id: str
   ]);
   if (!a) notFound();
 
+  let creadoEn: Date | null = null;
   let inicial: DatosPlan = {
     activoId,
     nombre: "",
@@ -51,6 +55,7 @@ export default async function EditorPlan({ params }: { params: Promise<{ id: str
       db.select().from(planMateriales).where(eq(planMateriales.planId, planId)),
     ]);
     if (!plan || plan.activoId !== activoId) notFound();
+    creadoEn = plan.creadoEn;
     inicial = {
       id: plan.id,
       activoId,
@@ -82,6 +87,11 @@ export default async function EditorPlan({ params }: { params: Promise<{ id: str
       <Titulo detalle="Qué se hace, cada cuánto, quién lo hace y qué hace falta tener.">
         {inicial.id ? `Plan: ${inicial.nombre}` : "Plan preventivo nuevo"}
       </Titulo>
+      {inicial.id && creadoEn && dentroDeVentana(creadoEn) && (
+        <div className="mb-3">
+          <BorrarPorError tipo="plan" id={inicial.id} que={`el plan «${inicial.nombre}»`} destino={`/activos/${activoId}`} />
+        </div>
+      )}
       <FormularioPlan
         inicial={inicial}
         medidor={a.medidor}

@@ -15,6 +15,7 @@ export const TABLAS_DE_DATOS = [
   "documento_versiones",
   "documentos",
   "cargas_combustible",
+  "partes_fabricacion",
   "compra_items",
   "compras",
   "obra_subtarea_avances",
@@ -35,6 +36,9 @@ export const TABLAS_DE_DATOS = [
   "herramientas",
   "herramienta_tipos",
   "activos",
+  "ordenes_fabricacion",
+  "producto_materiales",
+  "productos",
 ] as const;
 
 export const CONFIRMACION = "BORRAR";

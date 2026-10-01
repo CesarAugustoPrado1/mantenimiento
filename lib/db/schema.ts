@@ -160,6 +160,8 @@ export const movimientosInsumo = pgTable(
     trabajoId: integer("trabajo_id").references(() => trabajos.id),
     obraId: integer("obra_id").references(() => obras.id),
     compraId: integer("compra_id").references(() => compras.id),
+    /** Material usado para fabricar (una mesa vibradora, un esqueleto). */
+    ordenFabricacionId: integer("orden_fabricacion_id").references(() => ordenesFabricacion.id),
     /** Solo en ingresos: precio unitario en pesos a la fecha. */
     precioUnitario: numeric("precio_unitario", { precision: 14, scale: 2 }),
     nota: text("nota"),
@@ -717,6 +719,7 @@ export const documentos = pgTable(
     activoId: integer("activo_id").references(() => activos.id),
     obraId: integer("obra_id").references(() => obras.id),
     insumoId: integer("insumo_id").references(() => insumos.id),
+    productoId: integer("producto_id").references(() => productos.id),
     etapa: etapaEnum("etapa"),
     nota: text("nota"),
     archivado: boolean("archivado").notNull().default(false),
@@ -727,6 +730,7 @@ export const documentos = pgTable(
     index("documentos_activo_idx").on(t.activoId),
     index("documentos_obra_idx").on(t.obraId),
     index("documentos_insumo_idx").on(t.insumoId),
+    index("documentos_producto_idx").on(t.productoId),
   ],
 );
 
@@ -748,4 +752,82 @@ export const documentoVersiones = pgTable(
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("documento_versiones_uq").on(t.documentoId, t.version)],
+);
+
+/* -------------------------------------------------------------------------- */
+/* Fabricación propia: lo que hace el taller                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Lo que el taller fabrica: mesas vibradoras, cajones de contramolde,
+ * esqueletos (soportes de los moldes de piedra)… Cada producto tiene su
+ * receta (materiales por unidad) y su tiempo estándar (horas hombre por
+ * unidad), que es contra lo que se mide lo que de verdad tarda.
+ */
+export const productos = pgTable("productos", {
+  id: serial("id").primaryKey(),
+  nombre: text("nombre").notNull(),
+  /** Para qué modelo de piedra o qué uso: "Laja 40x40", "Línea Piedra". */
+  modelo: text("modelo"),
+  descripcion: text("descripcion"),
+  horasEstandar: numeric("horas_estandar", { precision: 8, scale: 2 }),
+  activo: boolean("activo").notNull().default(true),
+  creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** La receta: qué lleva cada unidad. Si es del pañol, se descuenta al fabricar. */
+export const productoMateriales = pgTable("producto_materiales", {
+  id: serial("id").primaryKey(),
+  productoId: integer("producto_id").notNull().references(() => productos.id, { onDelete: "cascade" }),
+  insumoId: integer("insumo_id").references(() => insumos.id),
+  descripcion: text("descripcion"),
+  cantidad: numeric("cantidad", { precision: 12, scale: 3 }).notNull(),
+});
+
+/**
+ * Una orden: "12 esqueletos para Laja 40x40, para el 20/11". Tiene fechas
+ * comprometidas y reales como las obras, y se mide igual.
+ */
+export const ordenesFabricacion = pgTable(
+  "ordenes_fabricacion",
+  {
+    id: serial("id").primaryKey(),
+    productoId: integer("producto_id").notNull().references(() => productos.id),
+    cantidad: integer("cantidad").notNull(),
+    /** Para quién o para qué: "Producción línea Piedra", "reposición de rotos". */
+    destino: text("destino"),
+    estado: estadoObraEnum("estado").notNull().default("pendiente"),
+    prioridad: prioridadEnum("prioridad").notNull().default("media"),
+    inicioPlan: date("inicio_plan"),
+    finPlan: date("fin_plan"),
+    fechaInicio: date("fecha_inicio"),
+    fechaFin: date("fecha_fin"),
+    responsableId: integer("responsable_id").references(() => usuarios.id),
+    responsableExterno: text("responsable_externo"),
+    nota: text("nota"),
+    creadoPorId: integer("creado_por_id").notNull().references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ordenes_fabricacion_producto_idx").on(t.productoId)],
+);
+
+/**
+ * Parte de producción: un día de trabajo sobre una orden. Cuántas unidades
+ * se terminaron (puede ser 0: se avanzó sin terminar ninguna) y cuántas horas
+ * hombre llevó. De la suma salen el avance y las horas reales por unidad.
+ */
+export const partesFabricacion = pgTable(
+  "partes_fabricacion",
+  {
+    id: serial("id").primaryKey(),
+    ordenId: integer("orden_id").notNull().references(() => ordenesFabricacion.id, { onDelete: "cascade" }),
+    fecha: date("fecha").notNull(),
+    unidades: integer("unidades").notNull().default(0),
+    horasHombre: numeric("horas_hombre", { precision: 8, scale: 2 }),
+    realizadoPorId: integer("realizado_por_id").references(() => usuarios.id),
+    nota: text("nota"),
+    usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("partes_fabricacion_orden_idx").on(t.ordenId, t.fecha)],
 );

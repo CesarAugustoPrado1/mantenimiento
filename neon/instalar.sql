@@ -496,6 +496,72 @@ CREATE INDEX "documentos_obra_idx" ON "documentos" USING btree ("obra_id");
 CREATE INDEX "documentos_insumo_idx" ON "documentos" USING btree ("insumo_id");
 insert into drizzle.__drizzle_migrations (hash, created_at) values ('415dcf03f85c350161b0330089ca21a52ca41ac474934e35b9f63485fd1a2b6a', 1790881126570);
 
+-- 0007_fabricacion
+CREATE TABLE "ordenes_fabricacion" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"producto_id" integer NOT NULL,
+	"cantidad" integer NOT NULL,
+	"destino" text,
+	"estado" "estado_obra" DEFAULT 'pendiente' NOT NULL,
+	"prioridad" "prioridad" DEFAULT 'media' NOT NULL,
+	"inicio_plan" date,
+	"fin_plan" date,
+	"fecha_inicio" date,
+	"fecha_fin" date,
+	"responsable_id" integer,
+	"responsable_externo" text,
+	"nota" text,
+	"creado_por_id" integer NOT NULL,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE "partes_fabricacion" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"orden_id" integer NOT NULL,
+	"fecha" date NOT NULL,
+	"unidades" integer DEFAULT 0 NOT NULL,
+	"horas_hombre" numeric(8, 2),
+	"realizado_por_id" integer,
+	"nota" text,
+	"usuario_id" integer NOT NULL,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE "producto_materiales" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"producto_id" integer NOT NULL,
+	"insumo_id" integer,
+	"descripcion" text,
+	"cantidad" numeric(12, 3) NOT NULL
+);
+
+CREATE TABLE "productos" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"nombre" text NOT NULL,
+	"modelo" text,
+	"descripcion" text,
+	"horas_estandar" numeric(8, 2),
+	"activo" boolean DEFAULT true NOT NULL,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE "documentos" ADD COLUMN "producto_id" integer;
+ALTER TABLE "movimientos_insumo" ADD COLUMN "orden_fabricacion_id" integer;
+ALTER TABLE "ordenes_fabricacion" ADD CONSTRAINT "ordenes_fabricacion_producto_id_productos_id_fk" FOREIGN KEY ("producto_id") REFERENCES "public"."productos"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "ordenes_fabricacion" ADD CONSTRAINT "ordenes_fabricacion_responsable_id_usuarios_id_fk" FOREIGN KEY ("responsable_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "ordenes_fabricacion" ADD CONSTRAINT "ordenes_fabricacion_creado_por_id_usuarios_id_fk" FOREIGN KEY ("creado_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "partes_fabricacion" ADD CONSTRAINT "partes_fabricacion_orden_id_ordenes_fabricacion_id_fk" FOREIGN KEY ("orden_id") REFERENCES "public"."ordenes_fabricacion"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "partes_fabricacion" ADD CONSTRAINT "partes_fabricacion_realizado_por_id_usuarios_id_fk" FOREIGN KEY ("realizado_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "partes_fabricacion" ADD CONSTRAINT "partes_fabricacion_usuario_id_usuarios_id_fk" FOREIGN KEY ("usuario_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "producto_materiales" ADD CONSTRAINT "producto_materiales_producto_id_productos_id_fk" FOREIGN KEY ("producto_id") REFERENCES "public"."productos"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "producto_materiales" ADD CONSTRAINT "producto_materiales_insumo_id_insumos_id_fk" FOREIGN KEY ("insumo_id") REFERENCES "public"."insumos"("id") ON DELETE no action ON UPDATE no action;
+CREATE INDEX "ordenes_fabricacion_producto_idx" ON "ordenes_fabricacion" USING btree ("producto_id");
+CREATE INDEX "partes_fabricacion_orden_idx" ON "partes_fabricacion" USING btree ("orden_id","fecha");
+ALTER TABLE "documentos" ADD CONSTRAINT "documentos_producto_id_productos_id_fk" FOREIGN KEY ("producto_id") REFERENCES "public"."productos"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "movimientos_insumo" ADD CONSTRAINT "movimientos_insumo_orden_fabricacion_id_ordenes_fabricacion_id_fk" FOREIGN KEY ("orden_fabricacion_id") REFERENCES "public"."ordenes_fabricacion"("id") ON DELETE no action ON UPDATE no action;
+CREATE INDEX "documentos_producto_idx" ON "documentos" USING btree ("producto_id");
+insert into drizzle.__drizzle_migrations (hash, created_at) values ('8b0859e374a8b44fbd70ba16aed7c437ab44e94b4a8eb2813e8fb85348153da3', 1790881938253);
+
 -- Datos de arranque
 insert into causas (nombre, descripcion) values
   ('Desgaste normal', 'Llegó al fin de su vida útil.'),
@@ -523,13 +589,13 @@ insert into categorias_insumo (nombre) values
 on conflict do nothing;
 
 insert into usuarios (usuario, nombre, rol, pin_hash)
-values ('admin', 'Administrador', 'admin', '$2a$10$2FBLFL5Q6k4L9IYksVPu8ey/a4N0onHEcL4qNiZ/jE8jqV778oIIq')
+values ('admin', 'Administrador', 'admin', '$2a$10$qkJGfbqyaL6q4es.fqUhdOszIiuboMF7GGyY9O0S84/SD3w/zrs0e')
 on conflict (usuario) do nothing;
 
 commit;
 
 -- Verificación: Neon muestra el resultado de esta última consulta.
--- Tiene que decir 29 tablas, 7 migraciones, 8 causas, 11 categorías y admin (admin).
+-- Tiene que decir 33 tablas, 8 migraciones, 8 causas, 11 categorías y admin (admin).
 select
   (select count(*) from information_schema.tables where table_schema = 'public') as tablas,
   (select count(*) from drizzle.__drizzle_migrations) as migraciones,
