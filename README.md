@@ -32,6 +32,31 @@ Tailwind v4 · Drizzle ORM · PostgreSQL en Neon · Vercel (región `gru1`).
 fila de control de drizzle, así que después se puede seguir con
 `npm run db:migrate` sin que intente recrear las tablas.
 
+## Etapa de prueba
+
+Mientras la instalación está en **modo prueba**, el admin tiene en
+Configuración → Etapa de prueba dos botones (con confirmación escribiendo
+`BORRAR`):
+
+- **Borrar todo**: deja la app vacía y sigue en prueba.
+- **Borrar todo y empezar en serio**: borra y apaga el modo prueba.
+
+Se borran equipos, planes, trabajos, insumos y sus movimientos, lecturas,
+combustible, herramientas, obras y compras. **Quedan** los usuarios, las causas,
+las categorías y las cotizaciones. La lista está en `lib/datos-prueba.ts`.
+
+No viene prendido: el default cuando no está la fila es "apagado", para que una
+base nueva no nazca con el botón de borrar todo. Se prende desde el SQL Editor
+de Neon:
+
+```sql
+insert into config (clave, valor) values ('modo_prueba', 'si')
+  on conflict (clave) do update set valor = 'si';
+```
+
+Mientras está prendido, el encabezado muestra un chip "prueba". Desde la app
+no se vuelve a prender: hacerlo cuesta esa línea de SQL a propósito.
+
 ## Puesta en marcha con terminal
 
 ```bash

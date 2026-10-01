@@ -28,6 +28,7 @@ const REGLAS: Array<{ prefijo: string; roles: Rol[] }> = [
   { prefijo: "/informes", roles: ["admin", "jefe_taller", "auditor"] },
   { prefijo: "/admin", roles: ["admin", "jefe_taller"] },
   { prefijo: "/admin/usuarios", roles: ["admin"] },
+  { prefijo: "/admin/prueba", roles: ["admin"] },
 ];
 
 export function puedeVer(rol: Rol, ruta: string): boolean {

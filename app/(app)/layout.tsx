@@ -3,6 +3,7 @@ import { cerrarSesion } from "@/lib/acciones/sesion";
 import { ETIQUETA_ROL, navParaRol } from "@/lib/permisos";
 import { NavInferior, NavLateral } from "@/components/navegacion";
 import { Marca } from "@/components/marca";
+import { enModoPrueba } from "@/lib/configuracion";
 
 export default async function LayoutApp({
   children,
@@ -11,6 +12,7 @@ export default async function LayoutApp({
 }) {
   const sesion = await requerirSesion();
   const items = navParaRol(sesion.rol);
+  const prueba = await enModoPrueba();
 
   return (
     <div className="min-h-dvh">
@@ -21,6 +23,8 @@ export default async function LayoutApp({
             <span className="truncate text-sm font-bold text-slate-900">
               Taller
             </span>
+            {/* Que todos sepan que lo que cargan se puede borrar. */}
+            {prueba && <span className="chip bg-amber-100 text-amber-900">prueba</span>}
           </div>
 
           <div className="flex items-center gap-3">

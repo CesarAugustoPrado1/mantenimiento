@@ -3,12 +3,14 @@ import { sql } from "drizzle-orm";
 import { requerirSesion } from "@/lib/auth";
 import { fila } from "@/lib/db/filas";
 import { Titulo } from "@/components/ui";
+import { enModoPrueba } from "@/lib/configuracion";
 
 export const metadata = { title: "Configuración · Taller" };
 export const dynamic = "force-dynamic";
 
 export default async function Admin() {
   const sesion = await requerirSesion();
+  const prueba = await enModoPrueba();
   const n = await fila<Record<string, number | string | null>>(sql`
     select
       (select count(*) from usuarios where activo)::int as usuarios,
@@ -34,7 +36,15 @@ export default async function Admin() {
       detalle: n?.ultima_cotizacion ? `última ${String(n.ultima_cotizacion).split("-").reverse().join("/")}` : "sin cargar",
     },
     ...(sesion.rol === "admin"
-      ? [{ href: "/admin/usuarios", titulo: "Usuarios", ayuda: "Quién entra y con qué rol.", detalle: `${n?.usuarios ?? 0}` }]
+      ? [
+          { href: "/admin/usuarios", titulo: "Usuarios", ayuda: "Quién entra y con qué rol.", detalle: `${n?.usuarios ?? 0}` },
+          {
+            href: "/admin/prueba",
+            titulo: "Etapa de prueba",
+            ayuda: "Borrar todos los datos cargados y arrancar de cero.",
+            detalle: prueba ? "activa" : "apagada",
+          },
+        ]
       : []),
   ];
 
