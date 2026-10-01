@@ -15,6 +15,7 @@ export default async function Admin() {
     select
       (select count(*) from usuarios where activo)::int as usuarios,
       (select count(*) from categorias_insumo where activa)::int as categorias,
+      (select count(*) from categorias_herramienta where activa)::int as categorias_herramienta,
       (select count(*) from causas where activa)::int as causas,
       (select count(*) from cotizaciones)::int as cotizaciones,
       (select max(fecha)::text from cotizaciones) as ultima_cotizacion,
@@ -28,6 +29,12 @@ export default async function Admin() {
     { href: "/vehiculos", titulo: "Vehículos", ayuda: "Clarks, autos y camionetas, con su conductor y sus services.", detalle: `${n?.vehiculos ?? 0}` },
     { href: "/insumos", titulo: "Insumos", ayuda: "Alta de insumos con su semáforo y si son infaltables.", detalle: `${n?.insumos ?? 0}` },
     { href: "/admin/categorias", titulo: "Categorías de insumos", ayuda: "Para agrupar el pañol.", detalle: `${n?.categorias ?? 0}` },
+    {
+      href: "/admin/categorias-herramientas",
+      titulo: "Categorías de herramientas",
+      ayuda: "La lista para clasificar las herramientas.",
+      detalle: `${n?.categorias_herramienta ?? 0}`,
+    },
     { href: "/admin/causas", titulo: "Causas de falla", ayuda: "Con qué se cierra un correctivo.", detalle: `${n?.causas ?? 0}` },
     {
       href: "/admin/cotizaciones",

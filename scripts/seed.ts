@@ -18,6 +18,7 @@ import { filasNumeradas } from "../lib/planilla";
 
 const {
   activos,
+  categoriasHerramienta,
   cargasCombustible,
   categoriasInsumo,
   causas,
@@ -224,12 +225,14 @@ async function ejemplos(db: Db, pin: string) {
     { planId: pls[4].id, insumoId: ins[4].id, cantidad: "6" },
   ]);
 
+  const catsH = await db.select().from(categoriasHerramienta);
+  const catH = (n: string) => catsH.find((c) => c.nombre === n)?.id ?? null;
   const tipos = await db
     .insert(herramientaTipos)
     .values([
-      { nombre: 'Amoladora 4½"', categoria: "Eléctricas", requeridas: 4 },
-      { nombre: "Soldadora inverter", categoria: "Soldadura", requeridas: 2 },
-      { nombre: "Taladro percutor", categoria: "Eléctricas", requeridas: 2 },
+      { nombre: 'Amoladora 4½"', categoriaId: catH("Eléctricas"), requeridas: 4 },
+      { nombre: "Soldadora inverter", categoriaId: catH("Soldadura"), requeridas: 2 },
+      { nombre: "Taladro percutor", categoriaId: catH("Eléctricas"), requeridas: 2 },
     ])
     .returning();
   await db.insert(herramientas).values([

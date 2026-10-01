@@ -169,10 +169,17 @@ export const movimientosInsumo = pgTable(
  * que existen, cada una con su estado. Faltante = requeridas − unidades
  * utilizables (bueno o regular). Una en reparación no cuenta: hoy no está.
  */
+/** Eléctricas, Manuales, Medición… Una lista: no se escribe cualquier cosa. */
+export const categoriasHerramienta = pgTable("categorias_herramienta", {
+  id: serial("id").primaryKey(),
+  nombre: text("nombre").notNull().unique(),
+  activa: boolean("activa").notNull().default(true),
+});
+
 export const herramientaTipos = pgTable("herramienta_tipos", {
   id: serial("id").primaryKey(),
   nombre: text("nombre").notNull(),
-  categoria: text("categoria"),
+  categoriaId: integer("categoria_id").references(() => categoriasHerramienta.id),
   requeridas: integer("requeridas").notNull().default(1),
   nota: text("nota"),
   activo: boolean("activo").notNull().default(true),

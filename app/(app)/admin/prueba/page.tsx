@@ -48,7 +48,7 @@ export default async function EtapaDePrueba() {
             </p>
             <p className="mt-3 mb-1 font-bold">Lo que queda</p>
             <p className="text-sm text-slate-700">
-              Los usuarios (si no, quedarías afuera de la app), las causas de falla, las categorías de insumos y las cotizaciones del
+              Los usuarios (si no, quedarías afuera de la app), las causas de falla, las categorías de insumos y de herramientas, y las cotizaciones del
               dólar. Los usuarios de prueba se pueden dar de baja desde Usuarios.
             </p>
           </div>

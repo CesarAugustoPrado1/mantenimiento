@@ -28,7 +28,14 @@ Tailwind v4 · Drizzle ORM · PostgreSQL en Neon · Vercel (región `gru1`).
 4. Crear los usuarios (jefe de taller, técnicos, conductores, auditoría) y
    empezar a cargar: insumos, máquinas, vehículos y sus planes.
 
-`neon/instalar.sql` se regenera con `npx tsx scripts/sql-neon.ts [PIN]`. Trae la
+`neon/instalar.sql` se regenera con `npx tsx scripts/sql-neon.ts [--pin 5678]`.
+
+**Actualizaciones de una base que ya anda:** cada cambio de esquema trae un
+`neon/actualizar-NNNN.sql` con solo las migraciones nuevas (se genera con
+`npx tsx scripts/sql-neon.ts --actualizar N`). Se pega entero en el SQL Editor,
+se ejecuta una vez y la última pestaña dice cuántas tablas y migraciones hay.
+**Primero la base, después el código**: ejecutar el SQL antes de que Vercel
+despliegue el cambio. Trae la
 fila de control de drizzle, así que después se puede seguir con
 `npm run db:migrate` sin que intente recrear las tablas.
 

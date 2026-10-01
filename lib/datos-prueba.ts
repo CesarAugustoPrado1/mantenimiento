@@ -3,7 +3,7 @@
  *
  * Lo que NO se borra, a propósito:
  * - usuarios: un borrado que se los lleva te deja afuera de tu propia app;
- * - causas de falla, categorías de insumos y cotizaciones: son configuración
+ * - causas de falla, categorías (de insumos y de herramientas) y cotizaciones: son configuración
  *   (y las cotizaciones son datos reales que vienen de internet);
  * - config.
  *

@@ -1,0 +1,1 @@
+ALTER TABLE "herramienta_tipos" DROP COLUMN "categoria";

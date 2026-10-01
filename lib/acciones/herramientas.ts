@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
-import { herramientas, herramientaTipos } from "../db/schema";
+import { categoriasHerramienta, herramientas, herramientaTipos } from "../db/schema";
 import { autorizar } from "../auth";
 import { CONFIGURAN, OPERAN } from "../permisos";
 import { ejecutar, fallar, type Resultado } from "./comun";
@@ -13,7 +13,7 @@ import { id, nombre, num, texto } from "./validacion";
 const esquemaTipo = z.object({
   id: id.optional(),
   nombre,
-  categoria: texto(60),
+  categoriaId: id.nullable(),
   requeridas: num("¿Cuántas hacen falta?"),
   nota: texto(500),
   activo: z.boolean(),
@@ -28,7 +28,7 @@ export async function guardarTipoHerramienta(
     if (d.requeridas < 0 || !Number.isInteger(d.requeridas)) fallar("La cantidad requerida es un entero.");
     const valores = {
       nombre: d.nombre,
-      categoria: d.categoria,
+      categoriaId: d.categoriaId,
       requeridas: d.requeridas,
       nota: d.nota,
       activo: d.activo,
@@ -75,5 +75,36 @@ export async function guardarHerramienta(entrada: z.input<typeof esquemaUnidad>)
     else await db.insert(herramientas).values(valores);
     revalidatePath("/herramientas");
     revalidatePath("/tablero");
+  });
+}
+
+const esquemaCategoria = z.object({ id: id.optional(), nombre, activa: z.boolean() });
+
+export async function guardarCategoriaHerramienta(
+  entrada: z.input<typeof esquemaCategoria>,
+): Promise<Resultado<void>> {
+  return ejecutar(async () => {
+    await autorizar(...CONFIGURAN);
+    const d = esquemaCategoria.parse(entrada);
+    const [otra] = await db
+      .select({ id: categoriasHerramienta.id })
+      .from(categoriasHerramienta)
+      .where(
+        and(
+          sql`lower(${categoriasHerramienta.nombre}) = lower(${d.nombre})`,
+          d.id ? ne(categoriasHerramienta.id, d.id) : sql`true`,
+        ),
+      )
+      .limit(1);
+    if (otra) fallar("Ya hay una categoría con ese nombre.");
+    if (d.id) {
+      await db
+        .update(categoriasHerramienta)
+        .set({ nombre: d.nombre, activa: d.activa })
+        .where(eq(categoriasHerramienta.id, d.id));
+    } else {
+      await db.insert(categoriasHerramienta).values({ nombre: d.nombre, activa: d.activa });
+    }
+    revalidatePath("/", "layout");
   });
 }

@@ -5,9 +5,19 @@ import { guardarHerramienta, guardarTipoHerramienta } from "@/lib/acciones/herra
 import { Campo, Formulario, Interruptor } from "@/components/admin";
 import type { EstadoHerramienta } from "@/lib/db/schema";
 
-type Tipo = { id?: number; nombre: string; categoria: string; requeridas: string; nota: string; activo: boolean };
+type Tipo = { id?: number; nombre: string; categoriaId: number | null; requeridas: string; nota: string; activo: boolean };
 
-export function EditarTipo({ inicial, texto, clase }: { inicial: Tipo; texto: string; clase: string }) {
+export function EditarTipo({
+  inicial,
+  texto,
+  clase,
+  categorias,
+}: {
+  inicial: Tipo;
+  texto: string;
+  clase: string;
+  categorias: Array<{ id: number; nombre: string }>;
+}) {
   const [d, setD] = useState<Tipo | null>(null);
   if (!d) {
     return (
@@ -34,8 +44,19 @@ export function EditarTipo({ inicial, texto, clase }: { inicial: Tipo; texto: st
             <input className="campo" inputMode="numeric" value={d.requeridas} onChange={(e) => setD({ ...d, requeridas: e.target.value })} />
           </Campo>
         </div>
-        <Campo etiqueta="Categoría">
-          <input className="campo" value={d.categoria} onChange={(e) => setD({ ...d, categoria: e.target.value })} placeholder="Eléctricas, Manuales, Medición, Soldadura…" />
+        <Campo etiqueta="Categoría" ayuda="La lista se edita en Configuración → Categorías de herramientas.">
+          <select
+            className="campo"
+            value={d.categoriaId ?? ""}
+            onChange={(e) => setD({ ...d, categoriaId: e.target.value ? Number(e.target.value) : null })}
+          >
+            <option value="">Sin categoría</option>
+            {categorias.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
         </Campo>
         <Campo etiqueta="Nota">
           <input className="campo" value={d.nota} onChange={(e) => setD({ ...d, nota: e.target.value })} />

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { guardarCategoria } from "@/lib/acciones/insumos";
 import { guardarCausa } from "@/lib/acciones/trabajos";
+import { guardarCategoriaHerramienta } from "@/lib/acciones/herramientas";
 import { actualizarCotizacionesAhora, borrarCotizacion, elegirCasa, guardarCotizacion } from "@/lib/acciones/admin";
 import { CASAS } from "@/lib/cotizacion-api";
 import { useRouter } from "next/navigation";
@@ -14,7 +15,7 @@ import { Chip } from "@/components/ui";
 type Simple = { id?: number; nombre: string; descripcion?: string; activa: boolean; usos?: number };
 
 /** ABM de una lista corta: categorías de insumo o causas de falla. */
-export function ListaSimple({ tipo, items }: { tipo: "categoria" | "causa"; items: Simple[] }) {
+export function ListaSimple({ tipo, items }: { tipo: "categoria" | "categoria_herramienta" | "causa"; items: Simple[] }) {
   const [editando, setEditando] = useState<Simple | null>(null);
   const esCausa = tipo === "causa";
   return (
@@ -26,7 +27,9 @@ export function ListaSimple({ tipo, items }: { tipo: "categoria" | "causa"; item
           alGuardar={() =>
             esCausa
               ? guardarCausa({ id: editando.id, nombre: editando.nombre, descripcion: editando.descripcion ?? "", activa: editando.activa })
-              : guardarCategoria({ id: editando.id, nombre: editando.nombre, activa: editando.activa })
+              : tipo === "categoria_herramienta"
+                ? guardarCategoriaHerramienta({ id: editando.id, nombre: editando.nombre, activa: editando.activa })
+                : guardarCategoria({ id: editando.id, nombre: editando.nombre, activa: editando.activa })
           }
           cerrar={() => setEditando(null)}
         >
