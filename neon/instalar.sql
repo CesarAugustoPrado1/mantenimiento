@@ -359,7 +359,15 @@ insert into categorias_insumo (nombre) values
 on conflict do nothing;
 
 insert into usuarios (usuario, nombre, rol, pin_hash)
-values ('admin', 'Administrador', 'admin', '$2a$10$C78qaBCa1Seb0xCnv9QqkO.45.bsd6/pkwY/FaTFDZLWTNk3jFwKu')
+values ('admin', 'Administrador', 'admin', '$2a$10$fa.bapv2YMUexhV2mCPSC.RB9Dz85CVjlFHc0ePwqchglMkvoiN7S')
 on conflict (usuario) do nothing;
 
 commit;
+
+-- Verificación: Neon muestra el resultado de esta última consulta.
+-- Tiene que decir 21 tablas, 8 causas, 11 categorías y admin (admin).
+select
+  (select count(*) from information_schema.tables where table_schema = 'public') as tablas,
+  (select count(*) from causas) as causas,
+  (select count(*) from categorias_insumo) as categorias,
+  (select string_agg(usuario || ' (' || rol || ')', ', ') from usuarios) as usuarios;

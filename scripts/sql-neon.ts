@@ -53,6 +53,14 @@ values ('admin', 'Administrador', 'admin', ${q(bcrypt.hashSync(pin, 10))})
 on conflict (usuario) do nothing;
 
 commit;
+
+-- Verificación: Neon muestra el resultado de esta última consulta.
+-- Tiene que decir 21 tablas, 8 causas, 11 categorías y admin (admin).
+select
+  (select count(*) from information_schema.tables where table_schema = 'public') as tablas,
+  (select count(*) from causas) as causas,
+  (select count(*) from categorias_insumo) as categorias,
+  (select string_agg(usuario || ' (' || rol || ')', ', ') from usuarios) as usuarios;
 `;
 
 writeFileSync("neon/instalar.sql", salida);
