@@ -65,14 +65,22 @@ export function FormularioObra({
       <Campo etiqueta="Qué hay que hacer">
         <textarea className="campo" rows={4} value={d.descripcion} onChange={(e) => set("descripcion", e.target.value)} />
       </Campo>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Campo etiqueta="Inicio">
+      <div className="grid gap-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 sm:grid-cols-2">
+        <p className="text-sm font-semibold text-slate-700 sm:col-span-2">
+          Lo comprometido <span className="font-normal text-slate-500">— contra esto se mide el cumplimiento</span>
+        </p>
+        <Campo etiqueta="Empieza el">
+          <input className="campo" type="date" value={d.inicioPlan} onChange={(e) => set("inicioPlan", e.target.value)} />
+        </Campo>
+        <Campo etiqueta="Tiene que estar el">
+          <input className="campo" type="date" value={d.finPlan} onChange={(e) => set("finPlan", e.target.value)} />
+        </Campo>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Campo etiqueta="Empezó realmente el" ayuda="Si la obra tiene subtareas, se completa solo con la primera que arranca.">
           <input className="campo" type="date" value={d.fechaInicio} onChange={(e) => set("fechaInicio", e.target.value)} />
         </Campo>
-        <Campo etiqueta="Fin estimado">
-          <input className="campo" type="date" value={d.fechaEstimada} onChange={(e) => set("fechaEstimada", e.target.value)} />
-        </Campo>
-        <Campo etiqueta="Fin real">
+        <Campo etiqueta="Terminó realmente el" ayuda="Con subtareas, se completa solo cuando termina la última.">
           <input className="campo" type="date" value={d.fechaFin} onChange={(e) => set("fechaFin", e.target.value)} />
         </Campo>
       </div>

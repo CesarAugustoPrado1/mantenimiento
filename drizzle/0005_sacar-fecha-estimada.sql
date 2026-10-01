@@ -1,0 +1,1 @@
+ALTER TABLE "obras" DROP COLUMN "fecha_estimada";

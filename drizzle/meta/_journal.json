@@ -29,6 +29,20 @@
       "when": 1790821080756,
       "tag": "0003_repuestos",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790878907827,
+      "tag": "0004_obras-subtareas-y-estados",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790878915826,
+      "tag": "0005_sacar-fecha-estimada",
+      "breakpoints": true
     }
   ]
 }

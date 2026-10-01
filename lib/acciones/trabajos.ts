@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
-import { activos, causas, lecturas, planes, trabajos, trabajoTareas } from "../db/schema";
+import { activos, causas, lecturas, planes, trabajoAvances, trabajos, trabajoTareas } from "../db/schema";
 import { autorizar } from "../auth";
 import { CONFIGURAN, OPERAN } from "../permisos";
 import { hoyAR } from "../formato";
 import { resumenFila } from "../planilla";
+import { cambiarEstado } from "../estado-activo";
 import { moverStock, type Tx } from "../motor-stock";
 import { ejecutar, fallar, type Resultado } from "./comun";
 import { aNumeric, fecha, fechaOpcional, id, nombre, num, numOpcional, texto } from "./validacion";
@@ -19,7 +20,7 @@ const consumos = z
   .default([]);
 
 const accion = z.enum(["chequear", "cambiar", "ajustar", "limpiar", "lubricar", "otro"]);
-const estadoActivo = z.enum(["operativo", "con_falla", "fuera_de_servicio"]);
+const estadoActivo = z.enum(["operativo", "con_falla", "en_reparacion", "fuera_de_servicio"]);
 
 async function descontar(
   tx: Tx,
@@ -211,7 +212,7 @@ export async function abrirCorrectivo(
           reportadoPorId: yo.uid,
         })
         .returning({ id: trabajos.id });
-      await tx.update(activos).set({ estado: d.estadoActivo }).where(eq(activos.id, d.activoId));
+      await cambiarEstado(tx, { activoId: d.activoId, estado: d.estadoActivo, usuarioId: yo.uid, trabajoId: t.id });
       if (d.lectura != null) await registrarLectura(tx, d.activoId, d.fecha, d.lectura, yo.uid);
       return t.id;
     });
@@ -235,8 +236,6 @@ const esquemaSeguimiento = z.object({
   costoRepuestos: numOpcional,
   observaciones: texto(2000),
   consumos,
-  /** Cómo queda el equipo después. */
-  estadoActivo,
 });
 
 export async function actualizarCorrectivo(
@@ -283,8 +282,54 @@ export async function actualizarCorrectivo(
         trabajoId: d.id,
         fecha: cierre ?? hoyAR(),
       });
-      await tx.update(activos).set({ estado: d.estadoActivo }).where(eq(activos.id, t.activoId));
     });
+    revalidatePath("/", "layout");
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Avances de la reparación y estado del equipo                               */
+/* -------------------------------------------------------------------------- */
+
+const esquemaAvance = z.object({
+  trabajoId: id,
+  fecha,
+  texto: z.string().trim().min(2, "Contá qué se hizo.").max(2000),
+});
+
+/** Una entrada en la bitácora de la reparación: qué se hizo ese día. */
+export async function registrarAvance(entrada: z.input<typeof esquemaAvance>): Promise<Resultado<void>> {
+  return ejecutar(async () => {
+    const yo = await autorizar(...OPERAN);
+    const d = esquemaAvance.parse(entrada);
+    if (d.fecha > hoyAR()) fallar("La fecha no puede ser futura.");
+    const [t] = await db.select({ tipo: trabajos.tipo }).from(trabajos).where(eq(trabajos.id, d.trabajoId));
+    if (!t) fallar("El trabajo no existe.");
+    await db.insert(trabajoAvances).values({ trabajoId: d.trabajoId, fecha: d.fecha, texto: d.texto, usuarioId: yo.uid });
+    revalidatePath(`/trabajos/${d.trabajoId}`);
+  });
+}
+
+const esquemaEstado = z.object({
+  activoId: id,
+  estado: z.enum(["operativo", "con_falla", "en_reparacion", "fuera_de_servicio"]),
+  trabajoId: id.nullable().optional(),
+});
+
+/**
+ * Cambiar el estado del equipo sin salir de la pantalla: la app lo pregunta
+ * después de cada avance o cambio de una reparación.
+ */
+export async function cambiarEstadoEquipo(entrada: z.input<typeof esquemaEstado>): Promise<Resultado<void>> {
+  return ejecutar(async () => {
+    const yo = await autorizar(...OPERAN);
+    const d = esquemaEstado.parse(entrada);
+    const [a] = await db.select({ estado: activos.estado }).from(activos).where(eq(activos.id, d.activoId));
+    if (!a) fallar("El equipo no existe.");
+    if (a.estado === "baja") fallar("El equipo está dado de baja.");
+    await db.transaction((tx) =>
+      cambiarEstado(tx, { activoId: d.activoId, estado: d.estado, usuarioId: yo.uid, trabajoId: d.trabajoId ?? null }),
+    );
     revalidatePath("/", "layout");
   });
 }

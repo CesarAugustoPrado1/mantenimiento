@@ -160,7 +160,8 @@ export function FormularioActivo({
           <select className="campo" value={d.estado} onChange={(e) => set("estado", e.target.value as EstadoActivo)}>
             <option value="operativo">Operativo</option>
             <option value="con_falla">Con falla (funciona)</option>
-            <option value="fuera_de_servicio">Fuera de servicio</option>
+            <option value="en_reparacion">En reparación (lo están arreglando)</option>
+            <option value="fuera_de_servicio">Fuera de servicio (parado, esperando)</option>
             <option value="baja">Dado de baja</option>
           </select>
         </Campo>

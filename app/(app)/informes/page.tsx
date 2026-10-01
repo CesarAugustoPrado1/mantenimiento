@@ -134,6 +134,11 @@ export default async function Informes({ searchParams }: { searchParams: Promise
       <Titulo detalle={`Lo que se hizo, lo que se rompió y lo que costó. Los montos se comparan en dólares (${CASAS[casa]}) a la fecha de cada gasto.`}>
         Informes
       </Titulo>
+      <p className="mb-3 text-sm">
+        <Link href={`/obras/cumplimiento?anio=${anio}`} className="font-semibold underline">
+          Cumplimiento de obras (fechas comprometidas contra reales) →
+        </Link>
+      </p>
       <Pestanas actual={String(anio)} opciones={anios.map((a) => ({ valor: String(a), etiqueta: String(a), href: `/informes?anio=${a}` }))} />
 
       {sinCotizacion && sinCotizacion.n > 0 && (

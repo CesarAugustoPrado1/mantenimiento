@@ -182,6 +182,7 @@ export function ChipPrioridad({ prioridad }: { prioridad: string }) {
 const ESTADO_ACTIVO = {
   operativo: { texto: "Operativo", tono: "verde" },
   con_falla: { texto: "Con falla", tono: "amarillo" },
+  en_reparacion: { texto: "En reparación", tono: "azul" },
   fuera_de_servicio: { texto: "Fuera de servicio", tono: "rojo" },
   baja: { texto: "De baja", tono: "gris" },
 } as const;

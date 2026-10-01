@@ -202,3 +202,43 @@ test("repuestos: semáforo desde el mínimo a tener", () => {
   assert.equal(nivelDeStock(10, rulemanes.critico, rulemanes.atento), "verde");
   assert.equal(compraSugerida(6, rulemanes.critico, rulemanes.atento, rulemanes.ideal), 4);
 });
+
+import { avanceObra, desvio, fechasTrasAvance, resumir, textoDesvio } from "../lib/cumplimiento";
+
+test("obras: el ejemplo del local de Catamarca", () => {
+  const fin = desvio("2026-11-05", "2026-11-20", "2026-12-01");
+  assert.deepEqual(fin, { tipo: "cumplido", dias: 15 });
+  assert.equal(textoDesvio(fin), "15 días tarde");
+  const inicio = desvio("2026-10-10", "2026-10-15", "2026-12-01");
+  assert.equal(textoDesvio(inicio), "5 días tarde");
+  assert.equal(textoDesvio(desvio("2026-11-05", null, "2026-11-08")), "3 días de atraso");
+  assert.equal(textoDesvio(desvio("2026-11-05", null, "2026-11-01")), "faltan 4 días");
+  assert.equal(textoDesvio(desvio("2026-11-05", "2026-11-03", "2026-11-08")), "2 días antes");
+  assert.equal(desvio(null, "2026-11-03", "2026-11-08").tipo, "sin_plan");
+});
+
+test("obras: resumen de cumplimiento", () => {
+  const r = resumir([
+    desvio("2026-11-05", "2026-11-20", "2026-12-01"), // tarde 15
+    desvio("2026-11-05", "2026-11-05", "2026-12-01"), // a tiempo
+    desvio("2026-11-25", null, "2026-12-01"), // vencida 6
+    desvio("2026-12-20", null, "2026-12-01"), // pendiente: no cuenta
+    desvio(null, null, "2026-12-01"), // sin plan: no cuenta
+  ]);
+  assert.equal(r.medidos, 3);
+  assert.equal(r.aTiempo, 1);
+  assert.equal(r.porcentaje, 33);
+  assert.equal(r.atrasoPromedio, 10.5);
+});
+
+test("obras: avance promedio y fechas reales automáticas", () => {
+  assert.equal(avanceObra([{ progreso: 100 }, { progreso: 50 }, { progreso: 0 }, { progreso: 25 }]), 44);
+  assert.equal(avanceObra([]), null);
+  const base = { progreso: 0, inicioReal: null, finReal: null };
+  assert.deepEqual(fechasTrasAvance(base, 25, "2026-10-15"), { inicioReal: "2026-10-15", finReal: null });
+  const empezada = { progreso: 75, inicioReal: "2026-10-15", finReal: null };
+  assert.deepEqual(fechasTrasAvance(empezada, 100, "2026-11-20"), { inicioReal: "2026-10-15", finReal: "2026-11-20" });
+  const terminada = { progreso: 100, inicioReal: "2026-10-15", finReal: "2026-11-20" };
+  assert.deepEqual(fechasTrasAvance(terminada, 75, "2026-11-22"), { inicioReal: "2026-10-15", finReal: null });
+  assert.deepEqual(fechasTrasAvance(empezada, 0, "2026-11-22"), { inicioReal: null, finReal: null });
+});

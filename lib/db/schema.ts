@@ -232,9 +232,16 @@ export type ClaseActivo = (typeof claseActivoEnum.enumValues)[number];
 export const medidorEnum = pgEnum("medidor", ["ninguno", "km", "horas"]);
 export type Medidor = (typeof medidorEnum.enumValues)[number];
 
+/**
+ * `en_reparacion` y `fuera_de_servicio` son distintos a propósito: los dos
+ * están parados, pero en reparación alguien está trabajando en la máquina;
+ * fuera de servicio está esperando (un repuesto, un técnico, una decisión).
+ * Mezclarlos esconde el tiempo muerto de verdad.
+ */
 export const estadoActivoEnum = pgEnum("estado_activo", [
   "operativo",
   "con_falla",
+  "en_reparacion",
   "fuera_de_servicio",
   "baja",
 ]);
@@ -510,8 +517,11 @@ export const obras = pgTable("obras", {
   descripcion: text("descripcion"),
   estado: estadoObraEnum("estado").notNull().default("pendiente"),
   prioridad: prioridadEnum("prioridad").notNull().default("media"),
+  /** Lo comprometido: "empieza el 10/10, está el 5/11". */
+  inicioPlan: date("inicio_plan"),
+  finPlan: date("fin_plan"),
+  /** Lo que pasó. Si la obra tiene subtareas, se completan solas con ellas. */
   fechaInicio: date("fecha_inicio"),
-  fechaEstimada: date("fecha_estimada"),
   fechaFin: date("fecha_fin"),
   responsableId: integer("responsable_id").references(() => usuarios.id),
   responsableExterno: text("responsable_externo"),
@@ -527,6 +537,77 @@ export const obraNotas = pgTable("obra_notas", {
   obraId: integer("obra_id").notNull().references(() => obras.id, { onDelete: "cascade" }),
   usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
   texto: text("texto").notNull(),
+  creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Las partes de una obra: pintura, piso, instalación eléctrica, muestrarios.
+ * El avance va por escalones fijos (0, 25, 50, 75, 100): "empezado, por la
+ * mitad, avanzado, terminado" se dice igual en todas las obras y se puede
+ * comparar; un 37% no lo mide nadie.
+ */
+export const obraSubtareas = pgTable(
+  "obra_subtareas",
+  {
+    id: serial("id").primaryKey(),
+    obraId: integer("obra_id").notNull().references(() => obras.id, { onDelete: "cascade" }),
+    orden: integer("orden").notNull().default(0),
+    titulo: text("titulo").notNull(),
+    responsableId: integer("responsable_id").references(() => usuarios.id),
+    responsableExterno: text("responsable_externo"),
+    inicioPlan: date("inicio_plan"),
+    finPlan: date("fin_plan"),
+    /** Se completan solas al registrar el avance (primer paso > 0 y el 100). */
+    inicioReal: date("inicio_real"),
+    finReal: date("fin_real"),
+    progreso: integer("progreso").notNull().default(0),
+    nota: text("nota"),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("obra_subtareas_obra_idx").on(t.obraId, t.orden)],
+);
+
+/** Cada cambio de avance, con su fecha: es la historia de la obra. */
+export const obraSubtareaAvances = pgTable("obra_subtarea_avances", {
+  id: serial("id").primaryKey(),
+  subtareaId: integer("subtarea_id").notNull().references(() => obraSubtareas.id, { onDelete: "cascade" }),
+  fecha: date("fecha").notNull(),
+  progresoAntes: integer("progreso_antes").notNull(),
+  progreso: integer("progreso").notNull(),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+  nota: text("nota"),
+  creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/* -------------------------------------------------------------------------- */
+/* Historial de estado de los equipos y avances de las reparaciones           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Cada cambio de estado de un equipo, con cuándo y quién. Con esto se puede
+ * calcular cuánto tiempo estuvo en reparación o fuera de servicio.
+ */
+export const activoCambiosEstado = pgTable(
+  "activo_cambios_estado",
+  {
+    id: serial("id").primaryKey(),
+    activoId: integer("activo_id").notNull().references(() => activos.id),
+    desde: estadoActivoEnum("desde").notNull(),
+    hasta: estadoActivoEnum("hasta").notNull(),
+    trabajoId: integer("trabajo_id").references(() => trabajos.id),
+    usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("activo_cambios_estado_idx").on(t.activoId, t.creadoEn)],
+);
+
+/** La bitácora de una reparación: qué se hizo cada día. */
+export const trabajoAvances = pgTable("trabajo_avances", {
+  id: serial("id").primaryKey(),
+  trabajoId: integer("trabajo_id").notNull().references(() => trabajos.id, { onDelete: "cascade" }),
+  fecha: date("fecha").notNull(),
+  texto: text("texto").notNull(),
+  usuarioId: integer("usuario_id").notNull().references(() => usuarios.id),
   creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
 });
 

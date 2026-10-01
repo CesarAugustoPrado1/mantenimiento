@@ -6,6 +6,7 @@ import { fila, filas } from "@/lib/db/filas";
 import { agenda, repuestos as leerRepuestos, repuestosDisponibles } from "@/lib/consultas";
 import { nivelDeStock } from "@/lib/semaforo";
 import { AgregarRepuesto } from "@/components/repuestos";
+import { CambiarEstadoRapido } from "@/components/estado-equipo";
 import { BotonAccion } from "@/components/admin";
 import { quitarRepuesto } from "@/lib/acciones/repuestos";
 import { CONFIGURAN, OPERAN } from "@/lib/permisos";
@@ -54,7 +55,7 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
   if (!a) notFound();
   if (sesion.rol === "conductor" && a.responsable_id !== sesion.uid) redirect("/sin-permiso");
 
-  const [planes, trabajos, lecturasMes, consumos, [comb], reps] = await Promise.all([
+  const [planes, trabajos, lecturasMes, consumos, [comb], reps, estados] = await Promise.all([
     agenda({ activoId: id }),
     filas<{
       id: number;
@@ -93,6 +94,12 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
     `),
     a.combustible ? resumenCombustible(id) : Promise.resolve([]),
     leerRepuestos({ activoId: id }),
+    filas<{ desde: EstadoActivo; hasta: EstadoActivo; cuando: string; usuario: string; trabajo_id: number | null }>(sql`
+      select c.desde, c.hasta, to_char(c.creado_en at time zone 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI') as cuando,
+             u.nombre as usuario, c.trabajo_id
+        from activo_cambios_estado c join usuarios u on u.id = c.usuario_id
+       where c.activo_id = ${id} order by c.creado_en desc limit 8
+    `),
   ]);
   const disponibles = CONFIGURAN.includes(sesion.rol) ? await repuestosDisponibles() : [];
 
@@ -110,6 +117,7 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
         detalle={[a.tipo, [a.marca, a.modelo].filter(Boolean).join(" "), a.anio, a.ubicacion].filter(Boolean).join(" · ")}
         accion={
           <div className="flex flex-wrap gap-2">
+            {opera && a.estado !== "baja" && <CambiarEstadoRapido activoId={a.id} nombre={a.nombre} actual={a.estado} />}
             {sesion.rol !== "auditor" && (
               <Link href={`/trabajos/nuevo?activo=${a.id}`} className="boton-secundario text-sm">
                 ⚠ Reportar falla
@@ -408,6 +416,25 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
               </ul>
             )}
           </section>
+
+          {estados.length > 0 && (
+            <section className="tarjeta p-4">
+              <h2 className="mb-2 text-sm font-bold tracking-wide text-slate-500 uppercase">Cambios de estado</h2>
+              <ul className="space-y-1.5 text-xs">
+                {estados.map((c, i) => (
+                  <li key={i} className="flex flex-wrap items-center gap-1">
+                    <span className="text-slate-400">{c.cuando}</span>
+                    <ChipEstadoActivo estado={c.desde} /> → <ChipEstadoActivo estado={c.hasta} />
+                    {c.trabajo_id && (
+                      <Link href={`/trabajos/${c.trabajo_id}`} className="text-slate-500 underline">
+                        #{c.trabajo_id}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {a.nota && <p className="tarjeta p-4 text-sm whitespace-pre-line text-slate-600">{a.nota}</p>}
         </div>

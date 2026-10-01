@@ -28,7 +28,9 @@ export default async function Tablero() {
         (select count(*) from insumos where activo and stock > critico and stock <= atento)::int as amarillos,
         (select count(*) from insumos where activo and infaltable and stock <= atento)::int as infaltables,
         (select count(*) from trabajos where tipo = 'correctivo' and estado <> 'cerrado')::int as correctivos,
-        (select count(*) from activos where estado in ('con_falla', 'fuera_de_servicio'))::int as equipos_mal,
+        (select count(*) from activos where estado in ('con_falla', 'en_reparacion', 'fuera_de_servicio'))::int as equipos_mal,
+        (select count(*) from activos where estado = 'en_reparacion')::int as en_reparacion,
+        (select count(*) from activos where estado = 'fuera_de_servicio')::int as fuera_servicio,
         (select count(*) from obras where estado in ('pendiente', 'en_curso'))::int as obras,
         (select count(distinct i.id) from insumos i join activo_repuestos ar on ar.insumo_id = i.id
           join activos a on a.id = ar.activo_id
@@ -107,7 +109,7 @@ export default async function Tablero() {
           valor={n?.correctivos ?? 0}
           etiqueta="Correctivos abiertos"
           tono={n?.correctivos ? "amarillo" : "verde"}
-          detalle={`${n?.equipos_mal ?? 0} equipos con falla o parados`}
+          detalle={`${n?.equipos_mal ?? 0} equipos con problemas: ${n?.en_reparacion ?? 0} en reparación, ${n?.fuera_servicio ?? 0} fuera de servicio`}
         />
         <Indicador
           href="/herramientas"

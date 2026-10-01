@@ -9,6 +9,7 @@ import { autorizar } from "../auth";
 import { CONFIGURAN } from "../permisos";
 import { hoyAR } from "../formato";
 import { guardarLectura } from "../lecturas";
+import { cambiarEstado } from "../estado-activo";
 import { ejecutar, fallar, type Resultado } from "./comun";
 import { aNumeric, fecha, fechaOpcional, id, nombre, num, numOpcional, texto } from "./validacion";
 
@@ -32,7 +33,7 @@ const esquemaActivo = z.object({
   responsableId: id.nullable().optional(),
   medidor: z.enum(["ninguno", "km", "horas"]),
   combustible: z.enum(["diesel", "nafta", "gnc", "electrico"]).nullable(),
-  estado: z.enum(["operativo", "con_falla", "fuera_de_servicio", "baja"]),
+  estado: z.enum(["operativo", "con_falla", "en_reparacion", "fuera_de_servicio", "baja"]),
   caracteristicas: z
     .array(z.object({ clave: z.string().trim().max(60), valor: z.string().trim().max(200) }))
     .max(40),
@@ -43,7 +44,7 @@ export async function guardarActivo(
   entrada: z.input<typeof esquemaActivo>,
 ): Promise<Resultado<{ id: number }>> {
   return ejecutar(async () => {
-    await autorizar(...CONFIGURAN);
+    const yo = await autorizar(...CONFIGURAN);
     const d = esquemaActivo.parse(entrada);
     if (d.anio != null && (d.anio < 1950 || d.anio > 2100)) fallar("El año no parece válido.");
 
@@ -78,7 +79,11 @@ export async function guardarActivo(
 
     let resultado: number;
     if (d.id) {
-      await db.update(activos).set(valores).where(eq(activos.id, d.id));
+      const { estado, ...resto } = valores;
+      await db.transaction(async (tx) => {
+        await tx.update(activos).set(resto).where(eq(activos.id, d.id!));
+        await cambiarEstado(tx, { activoId: d.id!, estado, usuarioId: yo.uid });
+      });
       resultado = d.id;
     } else {
       const [creado] = await db.insert(activos).values(valores).returning({ id: activos.id });

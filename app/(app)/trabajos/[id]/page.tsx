@@ -9,7 +9,7 @@ import { fmtFecha, fmtNum, fmtPesos, hoyAR, UNIDAD_MEDIDOR } from "@/lib/formato
 import type { EstadoActivo, Medidor, ValorCelda } from "@/lib/db/schema";
 import { COLUMNA_UNICA, hallazgos, tituloHallazgo } from "@/lib/planilla";
 import { Chip, ChipEstadoActivo, ChipPrioridad, Titulo, Volver } from "@/components/ui";
-import { Seguimiento } from "./seguimiento";
+import { NuevoAvance, Seguimiento } from "./seguimiento";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +76,7 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
   if (!t) notFound();
   if (sesion.rol === "conductor" && t.responsable_id !== sesion.uid) redirect("/sin-permiso");
 
-  const [tareas, consumos] = await Promise.all([
+  const [tareas, consumos, avances, cambios] = await Promise.all([
     filas<{
       seccion: string | null;
       activoId: number | null;
@@ -93,6 +93,17 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
       select i.nombre, i.unidad, (-m.cantidad)::float8 as cantidad, m.fecha::text as fecha
         from movimientos_insumo m join insumos i on i.id = m.insumo_id
        where m.trabajo_id = ${id} order by m.id
+    `),
+    filas<{ id: number; fecha: string; texto: string; usuario: string }>(sql`
+      select a.id, a.fecha::text as fecha, a.texto, u.nombre as usuario
+        from trabajo_avances a join usuarios u on u.id = a.usuario_id
+       where a.trabajo_id = ${id} order by a.fecha desc, a.id desc
+    `),
+    filas<{ desde: string; hasta: string; cuando: string; usuario: string }>(sql`
+      select c.desde, c.hasta, to_char(c.creado_en at time zone 'America/Argentina/Buenos_Aires', 'DD/MM HH24:MI') as cuando,
+             u.nombre as usuario
+        from activo_cambios_estado c join usuarios u on u.id = c.usuario_id
+       where c.trabajo_id = ${id} order by c.creado_en desc
     `),
   ]);
 
@@ -216,6 +227,40 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
             </div>
           )}
 
+          {t.tipo === "correctivo" && (
+            <div className="tarjeta space-y-3 p-5">
+              <p className="font-bold">Avances de la reparación</p>
+              {puedeSeguir && t.estado !== "cerrado" && (
+                <NuevoAvance trabajoId={t.id} hoy={hoyAR()} equipo={{ id: t.activo_id, nombre: t.activo, estado: t.estado_activo }} />
+              )}
+              <ul className="space-y-2">
+                {avances.map((a) => (
+                  <li key={a.id} className="border-l-2 border-slate-200 pl-3 text-sm">
+                    <p className="whitespace-pre-line">{a.texto}</p>
+                    <p className="text-xs text-slate-400">
+                      {fmtFecha(a.fecha)} · {a.usuario}
+                    </p>
+                  </li>
+                ))}
+                {avances.length === 0 && <li className="text-sm text-slate-500">Sin avances registrados.</li>}
+              </ul>
+              {cambios.length > 0 && (
+                <div className="border-t border-slate-100 pt-2">
+                  <p className="mb-1 text-xs font-semibold text-slate-500 uppercase">Cambios de estado del equipo</p>
+                  <ul className="space-y-1 text-xs text-slate-600">
+                    {cambios.map((c, i) => (
+                      <li key={i} className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-slate-400">{c.cuando}</span>
+                        <ChipEstadoActivo estado={c.desde as EstadoActivo} /> → <ChipEstadoActivo estado={c.hasta as EstadoActivo} />
+                        <span className="text-slate-400">{c.usuario}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {consumos.length > 0 && (
             <div className="tarjeta p-5">
               <p className="mb-2 font-bold">Insumos usados</p>
@@ -235,6 +280,7 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
 
         {puedeSeguir && (
           <Seguimiento
+            equipo={{ id: t.activo_id, nombre: t.activo, estado: t.estado_activo }}
             hoy={hoyAR()}
             causas={causas}
             usuarios={usuarios.filter((x) => x.rol !== "auditor" && x.rol !== "conductor")}
@@ -253,7 +299,6 @@ export default async function FichaTrabajo({ params }: { params: Promise<{ id: s
               costoManoObra: t.costo_mano_obra != null ? String(t.costo_mano_obra) : "",
               costoRepuestos: t.costo_repuestos != null ? String(t.costo_repuestos) : "",
               observaciones: t.observaciones ?? "",
-              estadoActivo: t.estado_activo === "baja" ? "fuera_de_servicio" : t.estado_activo,
             }}
           />
         )}

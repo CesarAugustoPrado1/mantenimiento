@@ -198,8 +198,41 @@ empresa (los clarks los maneja quien esté) y en el suyo.
 ### 1.9 Obras
 
 Armado de locales, arreglos en oficinas propias, obras edilicias: título, lugar,
-tipo, estado, prioridad, fechas, responsable o contratista, costos, una
-**bitácora** de avances, y los materiales del pañol que se le imputaron.
+tipo, estado, prioridad, responsable o contratista, costos, una **bitácora**, y
+los materiales del pañol que se le imputaron.
+
+**Subtareas.** Una obra se divide en partes (Local Catamarca: pintura, piso,
+instalación eléctrica, muestrarios, cartel). Cada una tiene responsable y su
+**avance en cinco escalones**: 0 sin empezar, 25 empezado, 50 por la mitad,
+75 avanzado, 100 finalizado (en verde). Escalones fijos y no un porcentaje
+libre, porque "por la mitad" se dice igual en todas las obras y se compara;
+un 37% no lo mide nadie. Cada cambio queda registrado **con su fecha**, que
+puede ser de días atrás (se anota cuando se puede).
+
+**Comprometido contra real.** Obra y subtareas tienen fechas **comprometidas**
+de inicio y fin. Las **reales** se completan solas: el primer avance marca el
+inicio y el 100% el fin. La obra sigue a sus subtareas: arranca con la primera
+y termina con la última. El **desvío** son los días entre una y otra (se
+prometió empezar el 10/10 y se arrancó el 15: 5 días tarde).
+
+**Cumplimiento** (`/obras/cumplimiento`, por año): porcentaje de obras y
+subtareas empezadas y terminadas en fecha, atraso promedio, obra por obra y por
+responsable. Cuenta solo lo que ya se puede medir: lo terminado y lo que se pasó
+de fecha sin terminar. Lo que todavía está en fecha no suma ni resta.
+
+### 1.10 Estado de los equipos
+
+Operativo, con falla (funciona con el problema), **en reparación** (alguien lo
+está arreglando), **fuera de servicio** (parado, esperando un repuesto, un técnico
+o una decisión) y de baja. En reparación y fuera de servicio se separan porque
+los dos están parados, pero solo uno es tiempo muerto: mezclarlos esconde cuánto
+se espera.
+
+Cada cambio de estado queda en un historial (desde, hasta, quién, por qué
+trabajo), que es de donde va a salir el tiempo parado de cada máquina. Para que
+cambiarlo no exija dar vueltas, **después de cada avance de una reparación la app
+pregunta cómo queda la máquina**: un toque, o "queda como estaba". La ficha de
+cada equipo tiene además un botón "Cambiar estado".
 
 ---
 

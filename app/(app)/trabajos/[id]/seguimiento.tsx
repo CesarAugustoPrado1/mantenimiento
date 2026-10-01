@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { actualizarCorrectivo } from "@/lib/acciones/trabajos";
+import { actualizarCorrectivo, registrarAvance } from "@/lib/acciones/trabajos";
 import { useAccion } from "@/components/usar-accion";
 import { Aviso } from "@/components/ui";
 import { Campo } from "@/components/admin";
 import { EditorConsumos, consumosValidos, type LineaConsumo } from "@/components/consumos";
+import { PreguntarEstado, type EstadoOperable } from "@/components/estado-equipo";
 
 type Estado = "abierto" | "en_curso" | "cerrado";
-type EstadoActivo = "operativo" | "con_falla" | "fuera_de_servicio";
 
 export type DatosSeguimiento = {
   id: number;
@@ -25,7 +25,6 @@ export type DatosSeguimiento = {
   costoManoObra: string;
   costoRepuestos: string;
   observaciones: string;
-  estadoActivo: EstadoActivo;
 };
 
 export function Seguimiento({
@@ -34,16 +33,19 @@ export function Seguimiento({
   usuarios,
   insumos,
   hoy,
+  equipo,
 }: {
   inicial: DatosSeguimiento;
   causas: Array<{ id: number; nombre: string }>;
   usuarios: Array<{ id: number; nombre: string }>;
   insumos: Array<{ id: number; nombre: string; unidad: string; stock: number }>;
   hoy: string;
+  equipo: { id: number; nombre: string; estado: string };
 }) {
   const router = useRouter();
   const { ejecutar, enviando, error } = useAccion();
   const [d, setD] = useState(inicial);
+  const [preguntar, setPreguntar] = useState<EstadoOperable | null>(null);
   const [consumos, setConsumos] = useState<LineaConsumo[]>([]);
   const set = <K extends keyof DatosSeguimiento>(k: K, v: DatosSeguimiento[K]) => setD({ ...d, [k]: v });
   const cerrando = d.estado === "cerrado";
@@ -52,14 +54,14 @@ export function Seguimiento({
     <div className="tarjeta space-y-4 p-5">
       <p className="font-bold">Seguimiento</p>
       {error && <Aviso>{error}</Aviso>}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Campo etiqueta="Estado">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Campo etiqueta="Estado de la reparación">
           <select
             className="campo"
             value={d.estado}
             onChange={(e) => {
               const estado = e.target.value as Estado;
-              setD({ ...d, estado, estadoActivo: estado === "cerrado" ? "operativo" : d.estadoActivo, fechaCierre: d.fechaCierre || hoy });
+              setD({ ...d, estado, fechaCierre: d.fechaCierre || hoy });
             }}
           >
             <option value="abierto">Abierto</option>
@@ -73,13 +75,6 @@ export function Seguimiento({
             <option value="media">Media</option>
             <option value="alta">Alta</option>
             <option value="urgente">Urgente</option>
-          </select>
-        </Campo>
-        <Campo etiqueta="El equipo queda">
-          <select className="campo" value={d.estadoActivo} onChange={(e) => set("estadoActivo", e.target.value as EstadoActivo)}>
-            <option value="operativo">Operativo</option>
-            <option value="con_falla">Con falla</option>
-            <option value="fuera_de_servicio">Fuera de servicio</option>
           </select>
         </Campo>
       </div>
@@ -170,6 +165,8 @@ export function Seguimiento({
               }),
             () => {
               setConsumos([]);
+              // Después de guardar, la pregunta: ¿cómo queda la máquina?
+              setPreguntar(d.estado === "cerrado" ? "operativo" : d.estado === "en_curso" ? "en_reparacion" : "fuera_de_servicio");
               router.refresh();
             },
           )
@@ -177,6 +174,74 @@ export function Seguimiento({
       >
         {enviando ? "Guardando…" : cerrando ? "Guardar y cerrar" : "Guardar"}
       </button>
+      {preguntar && (
+        <PreguntarEstado
+          activoId={equipo.id}
+          nombre={equipo.nombre}
+          actual={equipo.estado}
+          sugerido={preguntar}
+          trabajoId={d.id}
+          listo={() => setPreguntar(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** La bitácora de la reparación. Después de cada avance, la pregunta por el estado. */
+export function NuevoAvance({
+  trabajoId,
+  hoy,
+  equipo,
+}: {
+  trabajoId: number;
+  hoy: string;
+  equipo: { id: number; nombre: string; estado: string };
+}) {
+  const router = useRouter();
+  const { ejecutar, enviando, error } = useAccion();
+  const [texto, setTexto] = useState("");
+  const [fecha, setFecha] = useState(hoy);
+  const [preguntar, setPreguntar] = useState(false);
+  return (
+    <div className="space-y-2">
+      {error && <Aviso>{error}</Aviso>}
+      <textarea
+        className="campo"
+        rows={2}
+        placeholder="Qué se hizo hoy: se desarmó el reductor, se pidió el rodamiento…"
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+      />
+      <div className="flex flex-wrap gap-2">
+        <input className="campo w-auto" type="date" max={hoy} value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        <button
+          type="button"
+          className="boton-primario"
+          disabled={enviando || texto.trim().length < 2}
+          onClick={() =>
+            void ejecutar(
+              () => registrarAvance({ trabajoId, fecha, texto }),
+              () => {
+                setTexto("");
+                setPreguntar(true);
+                router.refresh();
+              },
+            )
+          }
+        >
+          {enviando ? "Guardando…" : "Registrar avance"}
+        </button>
+      </div>
+      {preguntar && (
+        <PreguntarEstado
+          activoId={equipo.id}
+          nombre={equipo.nombre}
+          actual={equipo.estado}
+          trabajoId={trabajoId}
+          listo={() => setPreguntar(false)}
+        />
+      )}
     </div>
   );
 }

@@ -19,8 +19,9 @@ export type DatosObra = {
   descripcion: string;
   estado: "pendiente" | "en_curso" | "terminada" | "cancelada";
   prioridad: "baja" | "media" | "alta" | "urgente";
+  inicioPlan: string;
+  finPlan: string;
   fechaInicio: string;
-  fechaEstimada: string;
   fechaFin: string;
   responsableId: number | null;
   responsableExterno: string;
@@ -36,8 +37,9 @@ export const OBRA_VACIA: DatosObra = {
   descripcion: "",
   estado: "pendiente",
   prioridad: "media",
+  inicioPlan: "",
+  finPlan: "",
   fechaInicio: "",
-  fechaEstimada: "",
   fechaFin: "",
   responsableId: null,
   responsableExterno: "",

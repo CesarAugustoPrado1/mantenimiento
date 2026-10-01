@@ -31,7 +31,7 @@ export function AbrirCorrectivo({
   const [prioridad, setPrioridad] = useState<"baja" | "media" | "alta" | "urgente">("media");
   const [fecha, setFecha] = useState(hoy);
   const [lectura, setLectura] = useState("");
-  const [estado, setEstado] = useState<"operativo" | "con_falla" | "fuera_de_servicio">("con_falla");
+  const [estado, setEstado] = useState<"operativo" | "con_falla" | "en_reparacion" | "fuera_de_servicio">("con_falla");
   const act = activos.find((a) => a.id === activoId);
 
   return (
@@ -72,12 +72,13 @@ export function AbrirCorrectivo({
         )}
       </div>
       <Campo etiqueta="¿Cómo queda el equipo?">
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-4">
           {(
             [
               ["operativo", "Funciona normal"],
               ["con_falla", "Funciona con la falla"],
-              ["fuera_de_servicio", "Parado"],
+              ["en_reparacion", "En reparación"],
+              ["fuera_de_servicio", "Parado, esperando"],
             ] as const
           ).map(([v, t]) => (
             <button
