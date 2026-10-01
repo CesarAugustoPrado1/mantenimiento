@@ -242,3 +242,21 @@ test("obras: avance promedio y fechas reales automáticas", () => {
   assert.deepEqual(fechasTrasAvance(terminada, 75, "2026-11-22"), { inicioReal: "2026-10-15", finReal: null });
   assert.deepEqual(fechasTrasAvance(empezada, 0, "2026-11-22"), { inicioReal: null, finReal: null });
 });
+
+import { esCarpetaDrive, esUrl, idDeDrive, miniatura } from "../lib/archivos";
+
+test("archivos: reconoce los links de Drive como se copian", () => {
+  const id = "1AbCdEfGhIjKlMnOpQrStUvWxYz012345";
+  assert.equal(idDeDrive(`https://drive.google.com/file/d/${id}/view?usp=sharing`), id);
+  assert.equal(idDeDrive(`https://drive.google.com/open?id=${id}`), id);
+  assert.equal(idDeDrive(`https://drive.google.com/uc?id=${id}&export=download`), id);
+  assert.equal(idDeDrive(`https://docs.google.com/document/d/${id}/edit`), id);
+  assert.equal(idDeDrive(`https://drive.google.com/drive/folders/${id}`), null);
+  assert.equal(idDeDrive("https://ejemplo.com/file/d/xxxxxxxxxxxx"), null);
+  assert.equal(esCarpetaDrive(`https://drive.google.com/drive/folders/${id}?usp=sharing`), true);
+  assert.equal(miniatura(`https://drive.google.com/file/d/${id}/view`), `https://drive.google.com/thumbnail?id=${id}&sz=w400`);
+  assert.equal(miniatura("https://x.com/plano.pdf"), null);
+  assert.equal(miniatura("https://x.com/foto.JPG"), "https://x.com/foto.JPG");
+  assert.equal(esUrl("drive.google.com/x"), false);
+  assert.equal(esUrl("javascript:alert(1)"), false);
+});

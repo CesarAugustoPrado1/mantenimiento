@@ -12,6 +12,8 @@
  * vez de llevarse algo que no estaba en la lista.
  */
 export const TABLAS_DE_DATOS = [
+  "documento_versiones",
+  "documentos",
   "cargas_combustible",
   "compra_items",
   "compras",

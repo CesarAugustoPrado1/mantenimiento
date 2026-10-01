@@ -279,6 +279,8 @@ export const activos = pgTable(
     estado: estadoActivoEnum("estado").notNull().default("operativo"),
     /** Ficha técnica libre: potencia, capacidad, aceite que lleva, etc. */
     caracteristicas: jsonb("caracteristicas").$type<Caracteristica[]>().notNull().default([]),
+    /** La carpeta de Drive de este equipo: el botón directo a todos sus archivos. */
+    carpetaUrl: text("carpeta_url"),
     nota: text("nota"),
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -528,6 +530,7 @@ export const obras = pgTable("obras", {
   horasHombre: numeric("horas_hombre", { precision: 8, scale: 1 }),
   costoManoObra: numeric("costo_mano_obra", { precision: 14, scale: 2 }),
   costoMateriales: numeric("costo_materiales", { precision: 14, scale: 2 }),
+  carpetaUrl: text("carpeta_url"),
   creadoPorId: integer("creado_por_id").notNull().references(() => usuarios.id),
   creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -678,4 +681,71 @@ export const cargasCombustible = pgTable(
     creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("cargas_activo_idx").on(t.activoId, t.fecha)],
+);
+
+/* -------------------------------------------------------------------------- */
+/* Archivos: planos, manuales, fotos                                          */
+/* -------------------------------------------------------------------------- */
+
+export const tipoDocumentoEnum = pgEnum("tipo_documento", [
+  "plano",
+  "despiece",
+  "manual",
+  "foto",
+  "certificado",
+  "otro",
+]);
+export type TipoDocumento = (typeof tipoDocumentoEnum.enumValues)[number];
+
+/** Fotos de obra: el antes, el durante y el después. */
+export const etapaEnum = pgEnum("etapa", ["antes", "durante", "despues"]);
+export type Etapa = (typeof etapaEnum.enumValues)[number];
+
+/**
+ * Un archivo con nombre propio ("Plano eje de la corona"). El archivo en sí
+ * vive en Drive: acá se guarda el link de cada versión. Si mañana la app sube
+ * directo, cambia de dónde sale el link, no esta tabla.
+ *
+ * Es de una máquina, de una obra o de un repuesto (o de ninguno: general).
+ */
+export const documentos = pgTable(
+  "documentos",
+  {
+    id: serial("id").primaryKey(),
+    titulo: text("titulo").notNull(),
+    tipo: tipoDocumentoEnum("tipo").notNull(),
+    activoId: integer("activo_id").references(() => activos.id),
+    obraId: integer("obra_id").references(() => obras.id),
+    insumoId: integer("insumo_id").references(() => insumos.id),
+    etapa: etapaEnum("etapa"),
+    nota: text("nota"),
+    archivado: boolean("archivado").notNull().default(false),
+    creadoPorId: integer("creado_por_id").notNull().references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("documentos_activo_idx").on(t.activoId),
+    index("documentos_obra_idx").on(t.obraId),
+    index("documentos_insumo_idx").on(t.insumoId),
+  ],
+);
+
+/**
+ * Cada versión con su link. Nunca se pisa una versión: el plano viejo del eje
+ * sigue estando aunque se haya rediseñado. La vigente es la de número mayor.
+ */
+export const documentoVersiones = pgTable(
+  "documento_versiones",
+  {
+    id: serial("id").primaryKey(),
+    documentoId: integer("documento_id").notNull().references(() => documentos.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    url: text("url").notNull(),
+    fecha: date("fecha").notNull(),
+    /** Qué cambió respecto de la anterior. */
+    nota: text("nota"),
+    creadoPorId: integer("creado_por_id").notNull().references(() => usuarios.id),
+    creadoEn: timestamp("creado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("documento_versiones_uq").on(t.documentoId, t.version)],
 );

@@ -17,6 +17,8 @@ import { CATEGORIAS, CAUSAS } from "./datos-base";
 import { filasNumeradas } from "../lib/planilla";
 
 const {
+  documentos,
+  documentoVersiones,
   activoRepuestos,
   activos,
   categoriasHerramienta,
@@ -253,6 +255,15 @@ async function ejemplos(db: Db, pin: string) {
     { activoId: carrusel.id, insumoId: reps[1].id, dondeVa: "Ruedas de las mesas", criticidad: "media" as const },
     { activoId: trompo.id, insumoId: reps[1].id, dondeVa: "Rodillos de apoyo", criticidad: "media" as const },
     { activoId: trompo.id, insumoId: reps[2].id, dondeVa: "Eje del tambor", criticidad: "alta" as const },
+  ]);
+
+  const [plano] = await db
+    .insert(documentos)
+    .values({ titulo: "Plano eje de la corona", tipo: "plano" as const, activoId: carrusel.id, creadoPorId: adm.id })
+    .returning();
+  await db.insert(documentoVersiones).values([
+    { documentoId: plano.id, version: 1, url: "https://drive.google.com/file/d/1EjemploPlanoVersionUno000/view", fecha: dia(400), creadoPorId: adm.id },
+    { documentoId: plano.id, version: 2, url: "https://drive.google.com/file/d/1EjemploPlanoVersionDos000/view", fecha: dia(30), nota: "Eje de 45 mm", creadoPorId: adm.id },
   ]);
 
   const tipos = await db

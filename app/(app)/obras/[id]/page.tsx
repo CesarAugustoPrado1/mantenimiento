@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { sql } from "drizzle-orm";
 import { requerirSesion } from "@/lib/auth";
 import { fila, filas } from "@/lib/db/filas";
-import { usuariosActivos } from "@/lib/consultas";
+import { documentos as leerDocumentos, usuariosActivos } from "@/lib/consultas";
+import Link from "next/link";
+import { Carpeta, NuevoArchivo } from "@/components/archivos";
+import { GaleriaObra } from "@/components/lista-archivos";
 import { CONFIGURAN, OPERAN } from "@/lib/permisos";
 import { ESTADO_OBRA, type DatosObra } from "@/lib/etiquetas";
 import { fmtFecha, fmtNum, fmtPesos, hoyAR } from "@/lib/formato";
@@ -52,6 +55,7 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
     horas_hombre: number | null;
     costo_mano_obra: number | null;
     costo_materiales: number | null;
+    carpeta_url: string | null;
     creado_por: string;
   }>(sql`
     select o.id, o.titulo, o.lugar, o.tipo, o.descripcion, o.estado, o.prioridad,
@@ -60,13 +64,13 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
            o.responsable_id, u.nombre as responsable,
            o.responsable_externo, o.horas_hombre::float8 as horas_hombre,
            o.costo_mano_obra::float8 as costo_mano_obra, o.costo_materiales::float8 as costo_materiales,
-           c.nombre as creado_por
+           o.carpeta_url, c.nombre as creado_por
       from obras o left join usuarios u on u.id = o.responsable_id join usuarios c on c.id = o.creado_por_id
      where o.id = ${id}
   `);
   if (!o) notFound();
 
-  const [subtareas, avances, notas, materiales, usuarios] = await Promise.all([
+  const [subtareas, avances, notas, materiales, usuarios, docs] = await Promise.all([
     filas<Subtarea>(sql`
       select s.id, s.titulo, s.responsable_id, u.nombre as responsable, s.responsable_externo,
              s.inicio_plan::text as inicio_plan, s.fin_plan::text as fin_plan,
@@ -90,7 +94,9 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
        where m.obra_id = ${id} and m.tipo = 'consumo' group by i.id order by i.nombre
     `),
     usuariosActivos(),
+    leerDocumentos({ obraId: id }),
   ]);
+  const fotos = docs.filter((d) => d.tipo === "foto");
 
   const e = ESTADO_OBRA[o.estado];
   const avance = avanceObra(subtareas) ?? (o.estado === "terminada" ? 100 : 0);
@@ -196,6 +202,7 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
               el cumplimiento de cada una.
             </p>
           )}
+          {/* las subtareas */}
           {subtareas.map((s) => {
             const hist = avances.filter((a) => a.subtarea_id === s.id);
             return (
@@ -252,6 +259,22 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
               </div>
             );
           })}
+
+          <div className="pt-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-bold tracking-wide text-slate-500 uppercase">Fotos</h2>
+              <span className="flex flex-wrap items-center gap-3">
+                <Link href={`/archivos?obra=${o.id}`} className="text-sm font-semibold text-slate-700 underline">
+                  📁 Todos los archivos ({docs.length})
+                </Link>
+                {opera && <NuevoArchivo dueno={{ obraId: o.id }} tipoInicial="foto" etapaInicial="durante" texto="+ Foto" clase="text-sm font-semibold text-slate-700 underline" />}
+              </span>
+            </div>
+            <div className="tarjeta space-y-3 p-4">
+              <GaleriaObra fotos={fotos} />
+              <Carpeta obraId={o.id} url={o.carpeta_url} puedeEditar={configura} />
+            </div>
+          </div>
         </section>
 
         <div className="space-y-4">

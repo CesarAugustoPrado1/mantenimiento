@@ -17,6 +17,7 @@ const ICONOS: Record<string, string> = {
   trabajos: "🔧",
   obras: "🏗",
   herramientas: "🧰",
+  archivos: "📁",
   compras: "🛒",
   informes: "📈",
   config: "⚙",

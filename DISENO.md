@@ -234,6 +234,29 @@ cambiarlo no exija dar vueltas, **después de cada avance de una reparación la 
 pregunta cómo queda la máquina**: un toque, o "queda como estaba". La ficha de
 cada equipo tiene además un botón "Cambiar estado".
 
+### 1.11 Archivos: planos, manuales y fotos
+
+Cada archivo tiene **nombre propio** ("Plano eje de la corona"), tipo (plano,
+despiece, manual, foto, certificado, otro) y es de una máquina, de una obra o de
+un repuesto (o general). Tiene **versiones**: una nueva nunca pisa la anterior,
+la vigente es la de número mayor y las viejas quedan a un toque.
+
+El archivo **vive en Drive**: la app guarda el link de cada versión. Es la
+decisión de arranque: costo cero, sin límites de la app, y el archivo sigue en
+manos de la empresa. Si más adelante conviene subir directo desde la app (por
+ejemplo, fotos desde el celular), cambia de dónde sale el link, no el modelo.
+
+- Cada máquina, obra y repuesto tiene el botón **📁 Archivos** a los suyos, y
+  máquinas y obras pueden tener vinculada **su carpeta de Drive**.
+- Las fotos de obra llevan **etapa** (antes, durante, después) y se ven en una
+  galería de tres columnas en la ficha de la obra. La miniatura sale de Drive
+  si el archivo está compartido "cualquiera con el vínculo".
+- `/archivos` es el repositorio entero, con filtro por tipo y búsqueda.
+
+**Pendiente de definir con el Drive en la mano:** la estructura de carpetas
+(una por máquina y por obra), quién es dueño, y si vale la pena la subida
+directa desde la app.
+
 ---
 
 ## 2. Roles

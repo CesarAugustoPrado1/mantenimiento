@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { filas } from "./db/filas";
 import { hoyAR } from "./formato";
 import { calcularVencimiento, ritmoDeUso, type Vencimiento } from "./vencimientos";
-import type { ClaseActivo, EstadoActivo, Medidor, Rol } from "./db/schema";
+import type { ClaseActivo, EstadoActivo, Etapa, Medidor, Rol, TipoDocumento } from "./db/schema";
 
 /* -------------------------------------------------------------------------- */
 /* Opciones para los selects                                                  */
@@ -220,5 +220,63 @@ export function repuestosDisponibles() {
   return filas<{ id: number; nombre: string; codigo: string | null; unidad: string; stock: number }>(sql`
     select id, nombre, codigo, unidad, stock::float8 as stock from insumos
      where activo order by es_repuesto desc, nombre
+  `);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Archivos                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export type FilaDocumento = {
+  id: number;
+  titulo: string;
+  tipo: TipoDocumento;
+  etapa: Etapa | null;
+  nota: string | null;
+  archivado: boolean;
+  activo_id: number | null;
+  activo: string | null;
+  obra_id: number | null;
+  obra: string | null;
+  insumo_id: number | null;
+  insumo: string | null;
+  version: number;
+  url: string;
+  fecha: string;
+  nota_version: string | null;
+  versiones: Array<{ version: number; url: string; fecha: string; nota: string | null; usuario: string }>;
+};
+
+export function documentos(filtro: {
+  activoId?: number;
+  obraId?: number;
+  insumoId?: number;
+  tipo?: string;
+  q?: string;
+  archivados?: boolean;
+}) {
+  return filas<FilaDocumento>(sql`
+    select d.id, d.titulo, d.tipo, d.etapa, d.nota, d.archivado,
+           d.activo_id, a.nombre as activo, d.obra_id, o.titulo as obra, d.insumo_id, i.nombre as insumo,
+           v.version, v.url, v.fecha::text as fecha, v.nota as nota_version,
+           (select json_agg(json_build_object('version', x.version, 'url', x.url, 'fecha', x.fecha::text,
+                                              'nota', x.nota, 'usuario', u.nombre) order by x.version desc)
+              from documento_versiones x join usuarios u on u.id = x.creado_por_id
+             where x.documento_id = d.id) as versiones
+      from documentos d
+      join lateral (
+        select version, url, fecha, nota from documento_versiones
+         where documento_id = d.id order by version desc limit 1
+      ) v on true
+      left join activos a on a.id = d.activo_id
+      left join obras o on o.id = d.obra_id
+      left join insumos i on i.id = d.insumo_id
+     where ${filtro.archivados ? sql`d.archivado` : sql`not d.archivado`}
+       ${filtro.activoId ? sql`and d.activo_id = ${filtro.activoId}` : sql``}
+       ${filtro.obraId ? sql`and d.obra_id = ${filtro.obraId}` : sql``}
+       ${filtro.insumoId ? sql`and d.insumo_id = ${filtro.insumoId}` : sql``}
+       ${filtro.tipo ? sql`and d.tipo = ${filtro.tipo}` : sql``}
+       ${filtro.q ? sql`and (d.titulo ilike ${"%" + filtro.q + "%"} or d.nota ilike ${"%" + filtro.q + "%"})` : sql``}
+     order by d.tipo, d.titulo
   `);
 }

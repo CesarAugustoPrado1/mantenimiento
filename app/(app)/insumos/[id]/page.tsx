@@ -40,7 +40,7 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
 
-  const [i, movimientos, activos, obras, cats, porEquipo, usos] = await Promise.all([
+  const [i, movimientos, activos, obras, cats, porEquipo, usos, archivos] = await Promise.all([
     fila<Insumo>(sql`
       select i.id, i.codigo, i.nombre, i.categoria_id, c.nombre as categoria, i.unidad,
              i.stock::float8 as stock, i.critico::float8 as critico, i.atento::float8 as atento,
@@ -105,6 +105,7 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
         from activo_repuestos ar join activos a on a.id = ar.activo_id
        where ar.insumo_id = ${id} and a.estado <> 'baja' order by a.nombre
     `),
+    fila<{ n: number }>(sql`select count(*)::int as n from documentos where insumo_id = ${id} and not archivado`),
   ]);
   if (!i) notFound();
 
@@ -264,7 +265,12 @@ export default async function FichaInsumo({ params }: { params: Promise<{ id: st
           </ul>
           {(i.es_repuesto || usos.length > 0) && (
             <div className="tarjeta mt-4 p-4">
-              <p className="mb-1 text-sm font-bold tracking-wide text-slate-500 uppercase">Repuesto de</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="mb-1 text-sm font-bold tracking-wide text-slate-500 uppercase">Repuesto de</p>
+                <Link href={`/archivos?insumo=${i.id}`} className="text-sm font-semibold underline">
+                  📁 Planos ({archivos?.n ?? 0})
+                </Link>
+              </div>
               {i.tiempo_reposicion_dias != null && (
                 <p className="mb-2 text-sm">
                   Conseguirlo tarda <strong>{i.tiempo_reposicion_dias} días</strong>.

@@ -55,7 +55,7 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
   if (!a) notFound();
   if (sesion.rol === "conductor" && a.responsable_id !== sesion.uid) redirect("/sin-permiso");
 
-  const [planes, trabajos, lecturasMes, consumos, [comb], reps, estados] = await Promise.all([
+  const [planes, trabajos, lecturasMes, consumos, [comb], reps, estados, archivos] = await Promise.all([
     agenda({ activoId: id }),
     filas<{
       id: number;
@@ -100,6 +100,7 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
         from activo_cambios_estado c join usuarios u on u.id = c.usuario_id
        where c.activo_id = ${id} order by c.creado_en desc limit 8
     `),
+    fila<{ n: number }>(sql`select count(*)::int as n from documentos where activo_id = ${id} and not archivado`),
   ]);
   const disponibles = CONFIGURAN.includes(sesion.rol) ? await repuestosDisponibles() : [];
 
@@ -117,6 +118,11 @@ export default async function FichaActivo({ params }: { params: Promise<{ id: st
         detalle={[a.tipo, [a.marca, a.modelo].filter(Boolean).join(" "), a.anio, a.ubicacion].filter(Boolean).join(" · ")}
         accion={
           <div className="flex flex-wrap gap-2">
+            {sesion.rol !== "conductor" && (
+              <Link href={`/archivos?activo=${a.id}`} className="boton-secundario text-sm">
+                📁 Archivos ({archivos?.n ?? 0})
+              </Link>
+            )}
             {opera && a.estado !== "baja" && <CambiarEstadoRapido activoId={a.id} nombre={a.nombre} actual={a.estado} />}
             {sesion.rol !== "auditor" && (
               <Link href={`/trabajos/nuevo?activo=${a.id}`} className="boton-secundario text-sm">

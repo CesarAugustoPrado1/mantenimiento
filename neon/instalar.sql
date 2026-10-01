@@ -454,6 +454,48 @@ insert into drizzle.__drizzle_migrations (hash, created_at) values ('2b489bfb58d
 ALTER TABLE "obras" DROP COLUMN "fecha_estimada";
 insert into drizzle.__drizzle_migrations (hash, created_at) values ('026f06def8e0af669e0fd52b703aabc1b0285ba3d52f22f1283a6d9c122c9e71', 1790878915826);
 
+-- 0006_archivos
+CREATE TYPE "public"."etapa" AS ENUM('antes', 'durante', 'despues');
+CREATE TYPE "public"."tipo_documento" AS ENUM('plano', 'despiece', 'manual', 'foto', 'certificado', 'otro');
+CREATE TABLE "documento_versiones" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"documento_id" integer NOT NULL,
+	"version" integer NOT NULL,
+	"url" text NOT NULL,
+	"fecha" date NOT NULL,
+	"nota" text,
+	"creado_por_id" integer NOT NULL,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE "documentos" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"titulo" text NOT NULL,
+	"tipo" "tipo_documento" NOT NULL,
+	"activo_id" integer,
+	"obra_id" integer,
+	"insumo_id" integer,
+	"etapa" "etapa",
+	"nota" text,
+	"archivado" boolean DEFAULT false NOT NULL,
+	"creado_por_id" integer NOT NULL,
+	"creado_en" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER TABLE "activos" ADD COLUMN "carpeta_url" text;
+ALTER TABLE "obras" ADD COLUMN "carpeta_url" text;
+ALTER TABLE "documento_versiones" ADD CONSTRAINT "documento_versiones_documento_id_documentos_id_fk" FOREIGN KEY ("documento_id") REFERENCES "public"."documentos"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "documento_versiones" ADD CONSTRAINT "documento_versiones_creado_por_id_usuarios_id_fk" FOREIGN KEY ("creado_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "documentos" ADD CONSTRAINT "documentos_activo_id_activos_id_fk" FOREIGN KEY ("activo_id") REFERENCES "public"."activos"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "documentos" ADD CONSTRAINT "documentos_obra_id_obras_id_fk" FOREIGN KEY ("obra_id") REFERENCES "public"."obras"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "documentos" ADD CONSTRAINT "documentos_insumo_id_insumos_id_fk" FOREIGN KEY ("insumo_id") REFERENCES "public"."insumos"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "documentos" ADD CONSTRAINT "documentos_creado_por_id_usuarios_id_fk" FOREIGN KEY ("creado_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;
+CREATE UNIQUE INDEX "documento_versiones_uq" ON "documento_versiones" USING btree ("documento_id","version");
+CREATE INDEX "documentos_activo_idx" ON "documentos" USING btree ("activo_id");
+CREATE INDEX "documentos_obra_idx" ON "documentos" USING btree ("obra_id");
+CREATE INDEX "documentos_insumo_idx" ON "documentos" USING btree ("insumo_id");
+insert into drizzle.__drizzle_migrations (hash, created_at) values ('415dcf03f85c350161b0330089ca21a52ca41ac474934e35b9f63485fd1a2b6a', 1790881126570);
+
 -- Datos de arranque
 insert into causas (nombre, descripcion) values
   ('Desgaste normal', 'Llegó al fin de su vida útil.'),
@@ -481,13 +523,13 @@ insert into categorias_insumo (nombre) values
 on conflict do nothing;
 
 insert into usuarios (usuario, nombre, rol, pin_hash)
-values ('admin', 'Administrador', 'admin', '$2a$10$muOzNfkYf7S9kbKzTqbDxuOiaQ7FeYSd4ac42Doi30OgwwFq1kJdK')
+values ('admin', 'Administrador', 'admin', '$2a$10$2FBLFL5Q6k4L9IYksVPu8ey/a4N0onHEcL4qNiZ/jE8jqV778oIIq')
 on conflict (usuario) do nothing;
 
 commit;
 
 -- Verificación: Neon muestra el resultado de esta última consulta.
--- Tiene que decir 27 tablas, 6 migraciones, 8 causas, 11 categorías y admin (admin).
+-- Tiene que decir 29 tablas, 7 migraciones, 8 causas, 11 categorías y admin (admin).
 select
   (select count(*) from information_schema.tables where table_schema = 'public') as tablas,
   (select count(*) from drizzle.__drizzle_migrations) as migraciones,
