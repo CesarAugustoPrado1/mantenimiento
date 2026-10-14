@@ -4,6 +4,7 @@ import { ETIQUETA_ETAPA, ETIQUETA_TIPO, ICONO_TIPO, miniatura } from "@/lib/arch
 import { fmtFecha } from "@/lib/formato";
 import { Chip } from "./ui";
 import { EditarArchivo, NuevaVersion } from "./archivos";
+import type { ModoSubida } from "./subida";
 import { BorrarPorError } from "./borrar-error";
 import { dentroDeVentana } from "@/lib/borrado";
 
@@ -21,7 +22,7 @@ export function FilaArchivo({
   configura: boolean;
   mostrarDueno: boolean;
   yo: number;
-  subida: boolean;
+  subida: ModoSubida | null;
 }) {
   const mini = d.tipo === "foto" || d.mime?.startsWith("image/") ? miniatura(d.url, 200, d.mime) : null;
   return (

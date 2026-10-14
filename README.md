@@ -25,7 +25,7 @@ Tailwind v4 · Drizzle ORM · PostgreSQL en Neon · Vercel (región `gru1`).
    `SESSION_SECRET` (una clave larga al azar), `DIRECT_URL` (la directa, sin
    `-pooler`) y `CRON_SECRET` (otra clave al azar: habilita el dólar automático
    y el reintento diario de archivos). Para los archivos: conectar un **Blob
-   store** al proyecto (Storage → Blob, crea `BLOB_READ_WRITE_TOKEN`) y cargar
+   store** público al proyecto (Storage → Blob; crea `BLOB_STORE_ID` o, en stores viejos, `BLOB_READ_WRITE_TOKEN`) y cargar
    `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REFRESH_TOKEN` de la
    cuenta de Drive (mismo esquema que entregas-app). Si las cargás después del primer deploy, volvé a desplegar.
 3. Entrar con `admin` / `1234` y **cambiar el PIN** en Configuración → Usuarios.

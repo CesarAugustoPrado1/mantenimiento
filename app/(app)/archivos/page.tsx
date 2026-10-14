@@ -8,7 +8,7 @@ import { ETIQUETA_TIPO } from "@/lib/archivos";
 import type { TipoDocumento } from "@/lib/db/schema";
 import { Pestanas, Titulo, Vacio, Volver } from "@/components/ui";
 import { NuevoArchivo } from "@/components/archivos";
-import { subidaHabilitada } from "@/lib/archivos-servidor";
+import { modoSubida } from "@/lib/archivos-servidor";
 import { FilaArchivo } from "@/components/lista-archivos";
 
 export const metadata = { title: "Archivos · Taller" };
@@ -109,7 +109,7 @@ export default async function Archivos({
                   : undefined
               }
               tipoInicial={obraId ? "foto" : "plano"}
-              subida={subidaHabilitada()}
+              subida={modoSubida()}
             />
           ) : null
         }
@@ -144,7 +144,7 @@ export default async function Archivos({
       ) : (
         <ul className="space-y-2">
           {lista.map((d) => (
-            <FilaArchivo key={d.id} d={d} opera={opera} configura={configura} mostrarDueno={!contexto} yo={sesion.uid} subida={subidaHabilitada()} />
+            <FilaArchivo key={d.id} d={d} opera={opera} configura={configura} mostrarDueno={!contexto} yo={sesion.uid} subida={modoSubida()} />
           ))}
         </ul>
       )}

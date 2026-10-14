@@ -90,7 +90,7 @@ export default async function Admin() {
         </p>
         {!blob && (
           <p className="text-xs text-slate-500">
-            Falta la variable <code>BLOB_READ_WRITE_TOKEN</code> en Vercel (Storage → Blob → conectar al proyecto). Mientras tanto, solo se pueden pegar links.
+            Falta conectar un Blob store al proyecto en Vercel (Storage → Blob; crea <code>BLOB_STORE_ID</code> o <code>BLOB_READ_WRITE_TOKEN</code>). Mientras tanto, solo se pueden pegar links.
           </p>
         )}
         {!drive && (

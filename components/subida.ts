@@ -1,6 +1,13 @@
 "use client";
 
-import { upload } from "@vercel/blob/client";
+import { upload, uploadPresigned } from "@vercel/blob/client";
+
+/**
+ * Cómo sube el navegador a Vercel Blob. "token": stores con
+ * BLOB_READ_WRITE_TOKEN (como entregas-app). "firmada": stores nuevos, que al
+ * conectarlos solo crean BLOB_STORE_ID y se autentican por OIDC.
+ */
+export type ModoSubida = "token" | "firmada";
 
 export type ArchivoSubido = { url: string; nombre: string; mime: string; tamano: number };
 
@@ -8,9 +15,10 @@ export type ArchivoSubido = { url: string; nombre: string; mime: string; tamano:
  * Sube un archivo directo del navegador a Vercel Blob (como entregas-app).
  * Lo que sigue (guardarlo y pasarlo a Drive) lo hace el servidor.
  */
-export async function subirArchivo(archivo: File, alProgresar?: (pct: number) => void): Promise<ArchivoSubido> {
+export async function subirArchivo(archivo: File, modo: ModoSubida, alProgresar?: (pct: number) => void): Promise<ArchivoSubido> {
   const limpio = archivo.name.normalize("NFD").replace(/[^\w.-]+/g, "_").slice(-80);
-  const blob = await upload(`archivos/${limpio}`, archivo, {
+  const subir = modo === "firmada" ? uploadPresigned : upload;
+  const blob = await subir(`archivos/${limpio}`, archivo, {
     access: "public",
     handleUploadUrl: "/api/upload",
     contentType: archivo.type || undefined,

@@ -8,7 +8,7 @@ import type { Etapa, TipoDocumento } from "@/lib/db/schema";
 import { useAccion } from "./usar-accion";
 import { Aviso } from "./ui";
 import { Campo, Formulario, Interruptor } from "./admin";
-import { subirArchivo, tituloDeArchivo } from "./subida";
+import { subirArchivo, tituloDeArchivo, type ModoSubida } from "./subida";
 
 const TIPOS = Object.keys(ETIQUETA_TIPO) as TipoDocumento[];
 const ETAPAS = Object.keys(ETIQUETA_ETAPA) as Etapa[];
@@ -25,10 +25,10 @@ export function NuevoArchivo({
   etapaInicial = null,
   texto = "+ Archivo",
   clase = "boton-primario",
-  subida = true,
+  subida = "token",
 }: {
   /** Si la app tiene configurada la subida (Vercel Blob). Si no, solo links. */
-  subida?: boolean;
+  subida?: ModoSubida | null;
   /** Si viene, el archivo es de ese dueño y no se elige. */
   dueno?: Dueno;
   opciones?: {
@@ -80,7 +80,7 @@ export function NuevoArchivo({
             const etiqueta = archivos.length > 1 ? ` ${i + 1} de ${archivos.length}` : "";
             let subido;
             try {
-              subido = await subirArchivo(f, (pct) => setProgreso(`Subiendo${etiqueta}… ${pct}%`));
+              subido = await subirArchivo(f, subida!, (pct) => setProgreso(`Subiendo${etiqueta}… ${pct}%`));
             } catch (e) {
               // Se devuelve como error y no se relanza: relanzar haría que se reintente todo y duplique lo ya subido.
               setProgreso(null);
@@ -223,7 +223,7 @@ export function NuevoArchivo({
   );
 }
 
-export function NuevaVersion({ documentoId, version, subida = true }: { documentoId: number; version: number; subida?: boolean }) {
+export function NuevaVersion({ documentoId, version, subida = "token" }: { documentoId: number; version: number; subida?: ModoSubida | null }) {
   const [abierto, setAbierto] = useState(false);
   const [d, setD] = useState({ url: "", nota: "", fecha: "" });
   const [archivo, setArchivo] = useState<File | null>(null);
@@ -246,7 +246,7 @@ export function NuevaVersion({ documentoId, version, subida = true }: { document
           if (conLink) return nuevaVersion({ documentoId, url: d.url, nota: d.nota, fecha: d.fecha });
           let subido;
           try {
-            subido = await subirArchivo(archivo!, (pct) => setProgreso(`Subiendo… ${pct}%`));
+            subido = await subirArchivo(archivo!, subida!, (pct) => setProgreso(`Subiendo… ${pct}%`));
           } catch (e) {
             console.error(e);
             setProgreso(null);

@@ -5,7 +5,7 @@ import { fila, filas } from "@/lib/db/filas";
 import { documentos as leerDocumentos, usuariosActivos } from "@/lib/consultas";
 import Link from "next/link";
 import { NuevoArchivo } from "@/components/archivos";
-import { subidaHabilitada } from "@/lib/archivos-servidor";
+import { modoSubida } from "@/lib/archivos-servidor";
 import { GaleriaObra } from "@/components/lista-archivos";
 import { BorrarPorError } from "@/components/borrar-error";
 import { dentroDeVentana } from "@/lib/borrado";
@@ -284,7 +284,7 @@ export default async function FichaObra({ params }: { params: Promise<{ id: stri
                     etapaInicial="durante"
                     texto="+ Fotos"
                     clase="text-sm font-semibold text-slate-700 underline"
-                    subida={subidaHabilitada()}
+                    subida={modoSubida()}
                   />
                 )}
               </span>

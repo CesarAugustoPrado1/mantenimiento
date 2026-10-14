@@ -7,6 +7,7 @@ import { fila } from "./db/filas";
 import { borrarDeDrive, carpetaDe, driveConfigurado, subirADrive } from "./drive";
 import { ETIQUETA_ETAPA, ETIQUETA_TIPO } from "./archivos";
 import type { Etapa, TipoDocumento } from "./db/schema";
+import type { ModoSubida } from "@/components/subida";
 
 /** Las URLs que entrega Vercel Blob a una subida desde el navegador. */
 export function esUrlDeBlob(url: string): boolean {
@@ -17,8 +18,15 @@ export function esUrlDeBlob(url: string): boolean {
   }
 }
 
+/** Ver ModoSubida. Si el proyecto no tiene Blob conectado, solo se pegan links. */
+export function modoSubida(): ModoSubida | null {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return "token";
+  if (process.env.BLOB_STORE_ID) return "firmada";
+  return null;
+}
+
 export function subidaHabilitada(): boolean {
-  return !!process.env.BLOB_READ_WRITE_TOKEN;
+  return modoSubida() !== null;
 }
 
 const PLURAL: Record<TipoDocumento, string> = {
