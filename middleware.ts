@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE_SESION, verificarSesion } from "./lib/session";
 import { puedeVer, rutaInicial } from "./lib/permisos";
 
-const PUBLICAS = ["/login", "/sin-permiso"];
+const PUBLICAS = ["/login", "/sin-permiso", "/privacidad"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
