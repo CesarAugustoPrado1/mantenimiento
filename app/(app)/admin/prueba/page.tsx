@@ -23,7 +23,9 @@ export default async function EtapaDePrueba() {
         (select count(*) from cargas_combustible)::int as cargas,
         (select count(*) from herramienta_tipos)::int as herramientas,
         (select count(*) from obras)::int as obras,
-        (select count(*) from compras)::int as compras
+        (select count(*) from compras)::int as compras,
+        (select count(*) from productos)::int as productos,
+        (select count(*) from documento_versiones)::int as archivos
     `),
   ]);
 
@@ -44,12 +46,13 @@ export default async function EtapaDePrueba() {
             <p className="text-sm text-slate-700">
               {n?.equipos} equipos, {n?.planes} planes, {n?.trabajos} trabajos (preventivos y correctivos), {n?.insumos} insumos con{" "}
               {n?.movimientos} movimientos, {n?.lecturas} lecturas de km/horas, {n?.cargas} cargas de combustible, {n?.herramientas}{" "}
-              herramientas, {n?.obras} obras y {n?.compras} compras.
+              herramientas, {n?.obras} obras, {n?.compras} compras, {n?.productos} productos de fabricación y {n?.archivos} archivos (también
+              se borran de Drive, con sus carpetas).
             </p>
             <p className="mt-3 mb-1 font-bold">Lo que queda</p>
             <p className="text-sm text-slate-700">
-              Los usuarios (si no, quedarías afuera de la app), las causas de falla, las categorías de insumos y de herramientas, y las cotizaciones del
-              dólar. Los usuarios de prueba se pueden dar de baja desde Usuarios.
+              Los usuarios (si no, quedarías afuera de la app), las causas de falla, las categorías de insumos y de herramientas, las cotizaciones del
+              dólar y la carpeta principal de Drive (vacía). Los usuarios de prueba se pueden dar de baja desde Usuarios.
             </p>
           </div>
           <PanelPrueba />

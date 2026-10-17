@@ -179,3 +179,15 @@ export async function borrarCopiasDe(vs: Array<{ url: string; drive_file_id: str
     }
   }
 }
+
+/** Borra carpetas de la app en Drive (con lo que tengan adentro). */
+export async function borrarCarpetasDeDrive(ids: string[]) {
+  if (!driveConfigurado()) return;
+  for (const id of ids) {
+    try {
+      await borrarDeDrive(id);
+    } catch (e) {
+      console.error("[archivos] no se pudo borrar una carpeta de Drive:", e);
+    }
+  }
+}
