@@ -213,6 +213,8 @@ export async function reintentarDrive(): Promise<Resultado<{ pasadas: number; fa
     const { pasarPendientesADrive } = await import("../archivos-servidor");
     const r = await pasarPendientesADrive();
     revalidatePath("/", "layout");
+    // Que se vea el motivo: sin esto, una clave de Google mal copiada no se nota.
+    if (r.fallidas && !r.pasadas) fallar(`No se pudo pasar a Drive: ${r.error}`);
     return r;
   });
 }

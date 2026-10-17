@@ -1,5 +1,5 @@
 import "server-only";
-import { del } from "@vercel/blob";
+import { del, get } from "@vercel/blob";
 import { eq, isNull, like, sql } from "drizzle-orm";
 import { db } from "./db";
 import { documentos, documentoVersiones } from "./db/schema";
@@ -16,6 +16,17 @@ export function esUrlDeBlob(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Lee un archivo de Vercel Blob con las credenciales del proyecto. Sirve para
+ * stores públicos y privados (los privados no se pueden bajar con un fetch común).
+ */
+export async function leerBlob(url: string) {
+  const access = new URL(url).hostname.includes(".private.") ? "private" : "public";
+  const r = await get(url, { access });
+  if (!r || r.statusCode !== 200) throw new Error("El archivo no está en Vercel Blob");
+  return r;
 }
 
 /** Ver ModoSubida. Si el proyecto no tiene Blob conectado, solo se pegan links. */
@@ -108,7 +119,8 @@ export async function pasarADrive(versionId: number): Promise<boolean> {
   const carpeta = await carpetaDe(await rutaDe(v.documentoId));
   const extension = (v.nombreArchivo ?? "").match(/\.[A-Za-z0-9]{1,6}$/)?.[0] ?? "";
   const nombre = `${doc?.titulo ?? ETIQUETA_TIPO.otro} - v${v.version}${extension}`;
-  const subido = await subirADrive(v.url, nombre, v.mime ?? "application/octet-stream", carpeta);
+  const datos = Buffer.from(await new Response((await leerBlob(v.url)).stream).arrayBuffer());
+  const subido = await subirADrive(datos, nombre, v.mime ?? "application/octet-stream", carpeta);
   await db
     .update(documentoVersiones)
     .set({
@@ -126,22 +138,24 @@ export async function pasarADrive(versionId: number): Promise<boolean> {
 }
 
 /** Reintenta todo lo que quedó en Blob. */
-export async function pasarPendientesADrive(): Promise<{ pasadas: number; fallidas: number }> {
+export async function pasarPendientesADrive(): Promise<{ pasadas: number; fallidas: number; error?: string }> {
   const pendientes = await db
     .select({ id: documentoVersiones.id })
     .from(documentoVersiones)
     .where(sql`${isNull(documentoVersiones.driveFileId)} and ${like(documentoVersiones.url, "https://%.blob.vercel-storage.com/%")}`);
   let pasadas = 0;
   let fallidas = 0;
+  let error: string | undefined;
   for (const p of pendientes) {
     try {
       if (await pasarADrive(p.id)) pasadas++;
     } catch (e) {
       fallidas++;
+      error ??= (e as Error).message;
       console.error(`[archivos] no se pudo pasar a Drive la versión ${p.id}:`, e);
     }
   }
-  return { pasadas, fallidas };
+  return { pasadas, fallidas, error };
 }
 
 export async function estadoArchivos() {

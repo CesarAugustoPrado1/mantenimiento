@@ -74,11 +74,16 @@ export function esCarpetaDrive(url: string): boolean {
  * archivo está compartido "cualquiera con el link". Para otras imágenes
  * (terminan en .jpg, .png…) se usa el link tal cual.
  */
+/** Dónde se abre un archivo: lo que está en Vercel Blob pasa por la app. */
+export function verArchivo(url: string): string {
+  return /^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(url) ? `/api/blob?u=${encodeURIComponent(url)}` : url;
+}
+
 export function miniatura(url: string, ancho = 400, mime?: string | null): string | null {
   // Subido desde la app: lo sirve la app misma, con la miniatura de Drive.
   if (url.startsWith("/api/drive/")) return !mime || mime.startsWith("image/") ? `${url}?mini=1` : null;
-  // Recién subido, todavía en Vercel Blob: la imagen se sirve tal cual.
-  if (mime?.startsWith("image/") && /^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(url)) return url;
+  // Recién subido, todavía en Vercel Blob: lo sirve la app (el store puede ser privado).
+  if (/^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(url)) return mime?.startsWith("image/") ? verArchivo(url) : null;
   const id = idDeDrive(url);
   if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w${ancho}`;
   return /\.(jpe?g|png|webp|gif)(\?.*)?$/i.test(url) ? url : null;

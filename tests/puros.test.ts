@@ -243,7 +243,7 @@ test("obras: avance promedio y fechas reales automáticas", () => {
   assert.deepEqual(fechasTrasAvance(empezada, 0, "2026-11-22"), { inicioReal: null, finReal: null });
 });
 
-import { esCarpetaDrive, esUrl, idDeDrive, miniatura } from "../lib/archivos";
+import { esCarpetaDrive, esUrl, idDeDrive, miniatura, verArchivo } from "../lib/archivos";
 
 test("archivos: reconoce los links de Drive como se copian", () => {
   const id = "1AbCdEfGhIjKlMnOpQrStUvWxYz012345";
@@ -259,7 +259,13 @@ test("archivos: reconoce los links de Drive como se copian", () => {
   assert.equal(miniatura("https://x.com/foto.JPG"), "https://x.com/foto.JPG");
   assert.equal(miniatura("/api/drive/abc123", 400, "image/jpeg"), "/api/drive/abc123?mini=1");
   assert.equal(miniatura("/api/drive/abc123", 400, "application/pdf"), null);
-  assert.equal(miniatura("https://x1.public.blob.vercel-storage.com/archivos/a-1.jpg", 400, "image/jpeg"), "https://x1.public.blob.vercel-storage.com/archivos/a-1.jpg");
+  assert.equal(
+    miniatura("https://x1.private.blob.vercel-storage.com/archivos/a-1.jpg", 400, "image/jpeg"),
+    "/api/blob?u=https%3A%2F%2Fx1.private.blob.vercel-storage.com%2Farchivos%2Fa-1.jpg",
+  );
+  assert.equal(miniatura("https://x1.private.blob.vercel-storage.com/archivos/a-1.pdf", 400, "application/pdf"), null);
+  assert.equal(verArchivo("https://x1.public.blob.vercel-storage.com/a.pdf"), "/api/blob?u=https%3A%2F%2Fx1.public.blob.vercel-storage.com%2Fa.pdf");
+  assert.equal(verArchivo("/api/drive/abc"), "/api/drive/abc");
   assert.equal(esUrl("drive.google.com/x"), false);
   assert.equal(esUrl("javascript:alert(1)"), false);
 });

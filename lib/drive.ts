@@ -92,11 +92,8 @@ export async function carpetaDe(ruta: Array<{ clave: string; nombre: string }>):
   return padre;
 }
 
-/** Sube a Drive el archivo que está en `origen` (una URL de Vercel Blob). */
-export async function subirADrive(origen: string, nombre: string, mime: string, carpetaId: string) {
-  const archivo = await fetch(origen, { signal: AbortSignal.timeout(55000) });
-  if (!archivo.ok) throw new Error(`No se pudo bajar el archivo original (${archivo.status})`);
-  const datos = Buffer.from(await archivo.arrayBuffer());
+/** Sube a Drive el contenido de un archivo. */
+export async function subirADrive(datos: Buffer, nombre: string, mime: string, carpetaId: string) {
   const limite = "limite_" + Date.now();
   const cuerpo = Buffer.concat([
     Buffer.from(

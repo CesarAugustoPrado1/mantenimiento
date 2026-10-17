@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { FilaDocumento } from "@/lib/consultas";
-import { ETIQUETA_ETAPA, ETIQUETA_TIPO, ICONO_TIPO, miniatura } from "@/lib/archivos";
+import { ETIQUETA_ETAPA, ETIQUETA_TIPO, ICONO_TIPO, miniatura, verArchivo } from "@/lib/archivos";
 import { fmtFecha } from "@/lib/formato";
 import { Chip } from "./ui";
 import { EditarArchivo, NuevaVersion } from "./archivos";
@@ -35,7 +35,7 @@ export function FilaArchivo({
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-2xl">{ICONO_TIPO[d.tipo]}</span>
         )}
         <div className="min-w-0 flex-1">
-          <a href={d.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">
+          <a href={verArchivo(d.url)} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">
             {d.titulo} ↗
           </a>
           <div className="mt-1 flex flex-wrap gap-1.5">
@@ -66,7 +66,7 @@ export function FilaArchivo({
               <ul className="mt-1 space-y-0.5">
                 {d.versiones.slice(1).map((v) => (
                   <li key={v.version}>
-                    <a href={v.url} target="_blank" rel="noopener noreferrer" className="underline">
+                    <a href={verArchivo(v.url)} target="_blank" rel="noopener noreferrer" className="underline">
                       versión {v.version}
                     </a>{" "}
                     · {fmtFecha(v.fecha)} · {v.usuario}
@@ -118,7 +118,7 @@ export function GaleriaObra({ fotos }: { fotos: FilaDocumento[] }) {
                 {lista.map((f) => {
                   const mini = miniatura(f.url, 300, f.mime);
                   return (
-                    <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" title={f.titulo} className="block">
+                    <a key={f.id} href={verArchivo(f.url)} target="_blank" rel="noopener noreferrer" title={f.titulo} className="block">
                       {mini ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={mini} alt={f.titulo} className="aspect-square w-full rounded-lg bg-slate-100 object-cover" loading="lazy" />
